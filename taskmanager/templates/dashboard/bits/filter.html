@@ -1,0 +1,23 @@
+<div class="filter_panel">
+	<div class="static_slideout" {% if custom %}style="display: none;"{% endif %}>
+		<b>show items from</b> &#183;
+		<a {% if not from %}class="selected"{% endif %} href="?">all</a> &#183;
+		<a {% if from == 'today 12am' %}class="selected"{% endif %} href="?from={{ 'today 12am'|urlencode }}&to=now">today</a> &#183;
+		<a {% if from == 'last sunday 12am' %}class="selected"{% endif %} href="?from={{ 'last sunday 12am'|urlencode }}&to=now">this week</a> &#183;
+		<a {% if from == 'last month eom' %}class="selected"{% endif %} href="?from={{ 'last month eom'|urlencode }}&to=now">this month</a> &#183;
+		<a href="#" onclick="var $parent = $(this).closest('.filter_panel'); $parent.find('.custom_slideout').slideDown().end().find('.static_slideout').slideUp();">custom...</a>
+	</div>
+
+	<div class="custom_slideout" {% if not custom %}style="display: none;"{% endif %}>
+		<a href="#" onclick="var $parent = $(this).closest('.filter_panel'); $parent.find('.custom_slideout').slideUp().end().find('.static_slideout').slideDown();">...back</a> &#183;
+
+		<form method="GET" action="?" style="display: inline; margin: 0px; padding: 0px;">
+			<b>show from</b>
+			<input type="text" class="boxy" name="from" value="{{ from|default:'last week' }}" />
+			<b>to</b>
+			<input type="text" class="boxy" name="to" value="{{ to|default:'now' }}" />
+			<input type="hidden" name="custom" value="true" />
+			<input type="submit" value="apply" />
+		</form>
+	</div>
+</div>

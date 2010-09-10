@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+
+<html>
+	<head>
+		<title>Task Manager :: {% block title %}{% endblock %}</title>
+
+		<link rel="shortcut icon" href="/static/taskmanager/favicon.ico" type="image/x-icon" />
+
+		<script type="text/javascript" src="/static/taskmanager/jquery-1.4.2.min.js"></script>
+		<script type="text/javascript" src="/static/taskmanager/jquery-ui-1.8.4.custom.min.js"></script>
+		<script type="text/javascript" src="/static/taskmanager/jquery.calendrical.js"></script>
+		<script type="text/javascript" src="/static/taskmanager/fullcalendar.min.js"></script>
+		<script type="text/javascript" src="/static/taskmanager/jquery.blockUI.js"></script>
+		<script type="text/javascript" src="/static/taskmanager/facebox/facebox.js"></script>
+
+		<link rel="stylesheet" type="text/css" href="/static/taskmanager/calendrical.css" />
+		<link rel="stylesheet" type="text/css" href="/static/taskmanager/fullcalendar.css" />
+		<link rel="stylesheet" type="text/css" href="/static/taskmanager/facebox/facebox.css" media="screen" />
+		<link rel="stylesheet" type="text/css" href="/static/taskmanager/css/tabs.css" />
+
+		<link rel="stylesheet" type="text/css" href="/static/taskmanager/taskmanager.css" />
+		<link rel="stylesheet" type="text/css" href="/static/taskmanager/taskmanager_dashboard.css" />
+		<link rel="stylesheet" type="text/css" href="/static/taskmanager/taskmanager_details.css" />
+
+		{% block includes %}{% endblock %}
+
+		<style>
+		/* context switcher dialog button */
+		#context_switcher_btn {
+			width: 32px; height: 33px; display: block;
+			z-index: 10;
+			padding: 10px 12px;
+
+			background-position: center center; background-repeat: no-repeat; text-decoration: none;
+			outline: none;
+		}
+		#context_switcher_btn:hover {
+			background-color: #FDF7BB;
+			border: solid 3px #FEF8D8;
+			padding: 7px 9px;
+		}
+		#context_switcher_btn.selected {
+			border: solid 3px gray; background-color: white; position: relative;
+			border-bottom: none;
+			padding: 7px 9px;
+			margin-bottom: 3px;
+			z-index: 10;
+		}
+
+		#context_switcher_dialog {
+			background: white; border: solid 3px gray;
+			position: absolute; padding: 0px; display: none; z-index: 5;
+		}
+
+		#context_switcher_dialog a {
+			display: block;
+			margin: 0px; padding: 15px; padding-left: 60px;
+			color: black; font-size: 22px; text-decoration: none; font-weight: bold;
+			background-position: 10px center; background-repeat: no-repeat;
+		}
+		#context_switcher_dialog a:hover {
+			background-color: #E3EFF3;
+		}
+
+		#context_switcher_dialog a .subby {
+			font-size: 12px; color: #777; margin-left: 3px; font-weight: normal;
+		}
+
+		.patients_context {
+			background-image: url('/static/taskmanager/icons/Users.png');
+		}
+		.patients_context.selected {
+			background-image: url('/static/taskmanager/icons/Users-Stencil.png');
+		}
+
+		.tasks_context {
+			background-image: url('/static/taskmanager/icons/Run.png');
+		}
+		.tasks_context.selected {
+			background-image: url('/static/taskmanager/icons/Run-Stencil.png');
+		}
+
+		{% block styles %}{% endblock %}
+		</style>
+
+		<script type="text/javascript">
+
+		// external so that sections can use it, too
+		function toggleDialog($me, $dialog, $header) {
+			var xpadding = ($dialog.outerWidth() - $dialog.width());
+			var ypadding = ($dialog.outerHeight() - $dialog.height());
+
+			var $img = $me.find("img");
+
+			if ($dialog.is(":hidden")) {
+				$me.addClass("selected");
+				$img.attr("src", "/static/taskmanager/icons/Add%20Stencil%20Button.png");
+
+				$dialog.css({
+					'top':  $header.offset().top + $header.outerHeight(),
+					'left': $header.offset().left,
+					'width': $header.outerWidth() - xpadding
+					/* 'height': $("#schedule_column").outerHeight() - $header.outerHeight() - ypadding */
+				}).slideDown();
+			}
+			else {
+				$me.removeClass("selected");
+				$img.attr("src", "/static/taskmanager/icons/Add%20Green%20Button.png");
+
+				$dialog.fadeOut();
+			}
+		}
+
+		// bind up the context chooser
+		$(document).ready(function() {
+			$("#context_switcher_btn").click(function() {
+				var $me = $(this);
+				var $dialog = $("#context_switcher_dialog");
+
+				var xpadding = ($dialog.outerWidth() - $dialog.width());
+				var ypadding = ($dialog.outerHeight() - $dialog.height());
+
+				if ($dialog.is(":hidden")) {
+					$me.addClass("selected");
+
+					$dialog.css({
+						'top':  $me.offset().top + $me.outerHeight() - 3,
+						'left': $me.offset().left
+						/* 'height': $("#schedule_column").outerHeight() - $header.outerHeight() - ypadding */
+					}).slideDown();
+				}
+				else {
+					$me.removeClass("selected");
+
+					$dialog.hide();
+				}
+			});
+		});
+
+		{% block scripts %}{% endblock %}
+		</script>
+	</head>
+
+	<body {% if section %}id="{{ section }}"{% endif %}>
+		<div id="context_switcher" style="position: relative; margin: 0px; margin-bottom: 1em; height: 100%; overflow: hidden;">
+			<div style="float: left; padding: 0px; text-align: center; border: solid 1px #ddd; margin: 5px;">
+				<a alt="Switch Context" id="context_switcher_btn" href="#" class="free_command {{ context }}_context">
+				</a>
+			</div>
+
+			<div style="float: left; width: 600px; height: 30px; padding: 0px;">
+				<div style="font-weight: bold; font-size: 28px; position: relative; top: 12px; padding-left: 2px;">
+				{% block header %}{% endblock %}
+				</div>
+			</div>
+		</div>
+
+		{% block content %}{% endblock %}
+
+		<!-- the context switcher is itself a hidden div -->
+		<div id="context_switcher_dialog" style="width: 280px;">
+			<a class="patients_context" href="/taskmanager/patients/" style="border-bottom: solid 1px #ccc;">
+				Patients
+				<div class="subby">processes, tasks, history, calendar</div>
+			</a>
+			<a class="tasks_context" href="/taskmanager/tasks/">
+				Task Editor
+				<div class="subby">templates, messages</div>
+			</a>
+		</div>
+	</body>
+</html>

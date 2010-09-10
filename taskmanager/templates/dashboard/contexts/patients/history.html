@@ -1,0 +1,83 @@
+{% extends "dashboard/contexts/patients/main.html" %}
+
+{% block section_content %}
+<table cellpadding="0" cellspacing="0" class="history_view_table" style="min-height: 300px; width: 100%; height: 100%; border: solid 1px gray;">
+	<tr>
+
+	<td id="history_column" valign="top" class="column" style="border-right: solid 1px #999;">
+		<div class="col_header">
+		History
+		</div>
+
+		<div style="padding: 10px; position: relative;">
+			<div style="font-weight: bold; font-size: 18px; margin-bottom: 1em;">
+			History for {{ patient.first_name }} {{ patient.last_name }}
+			</div>
+
+			{% include "dashboard/bits/filter.html" %}
+
+			<div style="position: absolute; top: 10px; right: 10px; color: #555;">
+				<b>color key:</b>
+				<span class="task_status pending" style="display: inline-block; width: 60px;">pending</span>
+				<span class="task_status running" style="display: inline-block; width: 60px;">running</span>
+				<span class="task_status past" style="display: inline-block; width: 60px;">past</span>
+			</div>
+
+			{% for process in processes %}
+				<div style="margin-bottom: 1em;">
+					<div class="history_process_header {{ process.get_status }}">
+						<a href="/taskmanager/processes/{{ process.id }}/details/" class="history_task_link" rel="facebox">
+						<b>{{ process }}</b> added on {{ process.add_date|date }}, {{ process.add_date|time }}
+						</a>
+					</div>
+
+					{% for session in process.get_sessions %}
+					<div class="history_item {{ session.get_status }}_light">
+						<div class="history_session_header">
+							<a href="/taskmanager/sessions/{{ session.id }}/details/" class="history_task_link" rel="facebox">
+								<b>{{ session.task.name }}</b>
+								<span class="history_session_date">ran on {{ session.add_date|date }}, {{ session.add_date|time }}</span>
+							</a>
+						</div>
+
+						<table class="history_msg_table">
+						{% for message in session.get_messages %}
+							<tr class="history_msg {{ message.outgoing|yesno:'incoming,outgoing' }}"">
+								<td class="msg_label"><b>{{ message.outgoing|yesno:"system:,client:" }}</b></td>
+								<td class="msg_data">{{ message.message }}</td>
+							</tr>
+						{% endfor %}
+
+						{% if not session.completed and session.state %}
+							<tr class="state_msg"">
+								<td class="msg_label"><b>state:</b></td>
+								<td class="msg_data">
+								<b>{{ session.state }}</b>{% if not session.completed and session.timeout_date %} (times out in <b>{{ session.timeout_date|timeuntil }}</b>){% endif %}
+								</td>
+							</tr>
+						{% endif %}
+						</table>
+					</div>
+					{% endfor %}
+
+					{% with process.get_pending_tasks as pending_tasks %}
+					{% if pending_tasks %}
+						<div style="overflow: auto; width: 100%;">
+							{% for sched_task in pending_tasks %}
+							<a href="/taskmanager/tasks/{{ sched_task.id }}/details/" class="history_task_link" rel="facebox">
+								<div class="history_task {{ sched_task.get_status }}_light">
+									<b>{{ sched_task.task.name }}</b> on {{ sched_task.schedule_date|date }}, {{ sched_task.schedule_date|time }}
+								</div>
+							</a>
+							{% endfor %}
+						</div>
+					{% endif %}
+					{% endwith %}
+				</div>
+			{% endfor %}
+		</div>
+	</td>
+
+	</tr>
+</table>
+{% endblock %}

@@ -1,0 +1,105 @@
+body { margin: 0px; padding: 0px; }
+body, table { font-family: Tahoma, sans-serif; font-size: 12px; }
+
+/* tabs */
+.iconified_tab {
+	padding-right: 5px; margin-left: -6px; margin-bottom: -3px;
+}
+
+.column_container {
+	width: 100%; overflow: hidden;
+	border: solid 1px gray;
+	background: white;
+}
+
+div.column { min-height: 300px; }
+td.column  { height:     352px; }
+
+/* for columns that have that gray bg with an icon on the left */
+.column .col_header { background: #ccc; font-weight: bold; font-size: 24px; padding: 10px; border-bottom: solid 3px gray; min-width: 220px; }
+
+/* currently unused, but will eventually go at the bottom of the columns for stowing away reviewed entries */
+.column .bin {
+	padding: 10px; background: #ccc; border-top: solid 1px gray;
+	font-weight: bold; position: absolute; left: 0px; right: 0px; bottom: 0px; height: 1em;
+}
+
+/* for the lefthand list from which we choose patients, tasks, etc. */
+.column .itemlist { background: white; }
+.chooser a { display: block; padding: 10px; text-decoration: none; color: black; }
+.chooser a:hover { background: #E3EFF3; }
+.chooser a.selected { background: #0D436F; color: white; font-weight: bold; }
+.chooser a .address_box { font-size: 10px; color: #555; }
+.chooser a.selected .address_box { color: #ccc; }
+
+/* page structure */
+.structural { width: 100%; }
+.structural td.outer { padding: 5px; }
+.structural #user_cell { width: 300px; }
+
+/* tabs */
+.tabrow td { padding: 0px; margin: 0px; }
+
+/* header commands */
+.header_command {
+	background: #bbb; position: absolute;
+	right: 0px; top: 0px; bottom: 0px;
+	padding: 8px 12px; border-left: solid 1px #999;
+}
+.header_command.selected {
+	border: solid 3px gray; background: white;
+	border-bottom: none; bottom: -3px;
+	padding: 5px 9px;
+}
+
+.column_dialog {
+	background: white; border: solid 3px gray; border-top: none;
+	position: absolute; padding: 10px; display: none;
+}
+
+/*
+=========================================
+=== Patients Context
+=========================================
+*/
+
+/* icon assignments */
+#users_column { width: 100%; }
+#users_column .col_header { background: #ccc url('/static/taskmanager/icons/Users.png') no-repeat 5px center; padding-left: 45px; }
+#users_column .choosable { background-image: url('/static/taskmanager/icons/User.png'); background-repeat: no-repeat; background-position: 5px center; padding-left: 45px; }
+
+.history_view_table #history_column { width: 100%; }
+.history_view_table #history_column .col_header { background: #ccc url('/static/taskmanager/icons/Discussion.png') no-repeat 5px center; padding-left: 45px; }
+
+.calendar_view_table #calendar_column { width: 100%; }
+.calendar_view_table #calendar_column .col_header { background: #ccc url('/static/taskmanager/icons/Calendar%20Big.png') no-repeat 5px center; padding-left: 45px; }
+
+.tasks_view_table #schedule_column .col_header { background: #ccc url('/static/taskmanager/icons/Appointment.png') no-repeat 5px center; padding-left: 45px; }
+.tasks_view_table #running_column .col_header { background: #ccc url('/static/taskmanager/icons/Appointment%20Urgent.png') no-repeat 5px center; padding-left: 45px; }
+.tasks_view_table #results_column .col_header { background: #ccc url('/static/taskmanager/icons/Appointment%20Cool.png') no-repeat 5px center; padding-left: 45px; }
+
+.processes_view_table #schedule_column .col_header { background: #ccc url('/static/taskmanager/icons/Gear%20Alt.png') no-repeat 5px center; padding-left: 45px; }
+.processes_view_table #running_column .col_header { background: #ccc url('/static/taskmanager/icons/Gear%20Alt%20Urgent.png') no-repeat 5px center; padding-left: 45px; }
+.processes_view_table #results_column .col_header { background: #ccc url('/static/taskmanager/icons/Gear%20Alt%20Cool.png') no-repeat 5px center; padding-left: 45px; }
+
+/* task lists */
+.task_list { width: 100%; }
+.task_list td { padding: 10px; width: 100%; }
+.task_list .subtext { padding-left: 1em; font-size: smaller; }
+
+/*
+=========================================
+=== Tasks Context
+=========================================
+*/
+
+/* icon assignments */
+#tasks_column { width: 100%; }
+#tasks_column .col_header { background: #ccc url('/static/taskmanager/icons/Run.png') no-repeat 5px center; padding-left: 45px; }
+#tasks_column .choosable { background-image: url('/static/taskmanager/icons/Gear.png'); background-repeat: no-repeat; background-position: 5px center; padding-left: 45px; }
+
+.templates_view_table #templates_column { width: 100%; }
+.templates_view_table #templates_column .col_header { background: #ccc url('/static/taskmanager/fugue/bonus/icons-32/script-text.png') no-repeat 5px center; padding-left: 45px; }
+
+.messages_view_table #messages_column { width: 100%; }
+.messages_view_table #messages_column .col_header { background: #ccc url('/static/taskmanager/fugue/bonus/icons-32/balloon-ellipsis.png') no-repeat 5px center; padding-left: 45px; }

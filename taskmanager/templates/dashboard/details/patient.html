@@ -1,0 +1,15 @@
+{% extends "dashboard/details/generic.html" %}
+
+{% block title %}Task Manager :: details :: {{ patient.first_name }} {{ patient.last_name }}{% endblock %}
+{% block header %}<img src="/static/taskmanager/icons/User.png" class="dialog_header_icon" />{{ patient.first_name }} {{ patient.last_name }}{% endblock %}
+
+
+{% block body %}
+<div class="dialog_section overview_section">overview</div>
+
+<table class="dialog_vertical" cellpadding="5" cellspacing="5">
+	<tr><td class="dialog_label">Given Name:</td><td>{{ patient.first_name }}</td></tr>
+	<tr><td class="dialog_label">Surname:</td><td>{{ patient.last_name }}</td></tr>
+	<tr><td class="dialog_label">Email Address:</td><td>{{ patient.address }}</td></tr>
+</table>
+{% endblock %}

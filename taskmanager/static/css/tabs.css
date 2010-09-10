@@ -1,0 +1,51 @@
+.tabber { /* general settings */
+	text-align: left; /* set to left, right or center */
+	margin: 0.5em 0 0.5em 0; /* set margins as desired */
+	font: bold 13px verdana, arial, sans-serif; /* set font as desired */
+	border-bottom: 1px solid #999; /* set border COLOR as desired */
+	list-style-type: none;
+	padding: 0px 0px 5px 5px; /* THIRD number must change with respect to padding-top (X) below */
+}
+
+ul#tabnav li { /* do not change */
+	display: inline;
+}
+
+body#history li.tab1,
+body#processes li.tab2,
+body#tasks li.tab3,
+body#calendar li.tab4,
+body#templates li.tab1,
+body#messages li.tab2
+{ /* settings for selected tab */
+	border-bottom: 1px solid #fff; /* set border color to page background color */
+	background-color: #fff; /* set background color to match above border color */
+}
+
+body#history li.tab1 a,
+body#processes li.tab2 a,
+body#tasks li.tab3 a,
+body#calendar li.tab4 a,
+body#templates li.tab1 a,
+body#messages li.tab2 a
+{ /* settings for selected tab link */
+	background-color: #fff; /* set selected tab background color as desired */
+	color: #000; /* set selected tab link color as desired */
+	position: relative;
+	top: 1px;
+	padding-top: 6px; /* must change with respect to padding (X) above and below */
+}
+
+ul#tabnav li a { /* settings for all tab links */
+	padding: 5px 12px; /* set padding (tab size) as desired; FIRST number must change with respect to padding-top (X) above */
+	border: 1px solid #999; /* set border COLOR as desired; usually matches border color specified in #tabnav */
+	background-color: #ccf; /* set unselected tab background color as desired */
+	color: #666; /* set unselected tab link color as desired */
+	margin-right: 0px; /* set additional spacing between tabs as desired */
+	text-decoration: none;
+	border-bottom: none;
+}
+
+ul#tabnav a:hover { /* settings for hover effect */
+	background: #eef; /* set desired hover color */
+}

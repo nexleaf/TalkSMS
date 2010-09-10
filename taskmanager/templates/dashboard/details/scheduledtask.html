@@ -1,0 +1,59 @@
+{% extends "dashboard/details/generic.html" %}
+{% load parse_json %}
+
+{% block title %}Task Manager :: details :: {{ task.task.name }}{% endblock %}
+{% block header %}<img src="/static/taskmanager/icons/Appointment.png" class="dialog_header_icon" />{{ task.task.name }}{% endblock %}
+
+{% block body %}
+<div class="dialog_section overview_section">overview</div>
+
+<table class="dialog_vertical" cellpadding="5" cellspacing="5" style="margin-bottom: 1.5em;">
+	{% if task.process %}
+	<tr><td class="dialog_label">process:</td><td>{{ task.process }}</td></tr>
+	{% endif %}
+
+	<tr><td class="dialog_label">type:</td><td>{{ task.task.name }}</td></tr>
+	<tr><td class="dialog_label">scheduled for:</td><td>{{ task.schedule_date|date }}, {{ task.schedule_date|time }}</td></tr>
+	<tr><td class="dialog_label">status:</td><td><span class="task_status {{ task.get_status }}" style="display: inline-block; width: 60px;">{{ task.get_status }}</span></td></tr>
+
+	{% if task.completed %}
+	<tr><td class="dialog_label">completed on:</td><td>{{ task.completed_date|date }}, {{ task.completed_date|time }}</td></tr>
+	{% endif %}
+
+	{% if task.arguments %}
+	<tr><td class="dialog_label" valign="top">arguments:</td><td>
+		<div style="background: #eee; padding: 5px; -moz-border-radius: 5px; -webkit-border-radius: 5px;">
+			<table cellpadding="5" cellspacing="0">
+				{{ task.arguments|parse_json|safe }}
+			</table>
+		</div>
+	</td></tr>
+	{% endif %}
+</table>
+
+<div class="dialog_section actions_section">actions</div>
+
+<div style="padding: 10px;">
+	<input id="remove_task_button" type="button" value="remove" />
+</div>
+
+<script type="text/javascript">
+$(document).ready(function() {
+	$("#remove_task_button").click(function() {
+		if (!confirm('Are you sure that you want to remove this task?'))
+			return;
+
+		$.ajax({
+			type: 'POST',
+			dataType: 'text',
+			url: '/taskmanager/tasks/{{ task.id }}/command/',
+			data: {'command': 'remove'},
+			success: function(data) {
+				if (data == "REQUIRES_REFRESH")
+					location.reload(true);
+			}
+		});
+	});
+});
+</script>
+{% endblock %}

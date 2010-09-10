@@ -1,0 +1,30 @@
+body.dialog { margin: 10px; }
+
+.dialog_header {
+	margin: -10px; padding: 10px; padding-top: 2px; background: #ddd; border-bottom: solid 3px #aaa; margin-bottom: 0em; font-weight: bold; font-size: 24px;
+}
+
+.dialog_header_icon {
+	position: relative; margin: 0px; top: 5px; padding-right: 10px;
+}
+
+.dialog_section {
+	background: #ddd;
+	margin: 0px -20px; padding: 5px; padding-left: 35px; font-weight: bold; margin-bottom: 0.5em;
+	background-position: 10px center; background-repeat: no-repeat;
+}
+
+.overview_section {
+	background-image: url('/static/taskmanager/fugue/icons-shadowless/clipboard-list.png');
+}
+
+.tasks_section {
+	background-image: url('/static/taskmanager/fugue/icons-shadowless/clock-frame.png');
+}
+
+.actions_section {
+	background-image: url('/static/taskmanager/fugue/icons-shadowless/arrow-transition.png');
+}
+
+.dialog_vertical td { padding: 3px; }
+.dialog_vertical .dialog_label { font-weight: bold; text-align: right; white-space: nowrap; }

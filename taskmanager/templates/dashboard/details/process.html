@@ -1,0 +1,109 @@
+{% extends "dashboard/details/generic.html" %}
+
+{% block title %}Task Manager :: details :: {{ process }}{% endblock %}
+{% block header %}<img src="/static/taskmanager/icons/Gear%20Alt.png" class="dialog_header_icon" />{{ process }}{% endblock %}
+
+{% block body %}
+<div class="dialog_section overview_section">overview</div>
+
+<table class="dialog_vertical" cellpadding="5" cellspacing="5" style="margin-bottom: 1em;">
+	{% if process.creator %}
+	<tr><td class="dialog_label">created by:</td><td>{{ process.creator.user }}</td></tr>
+	{% endif %}
+	<tr><td class="dialog_label">added on:</td><td>{{ process.add_date|date }}, {{ process.add_date|time }}</td></tr>
+	<tr><td class="dialog_label">status:</td><td><span class="task_status {{ process.get_status }}" style="display: inline-block; width: 60px;">{{ process.get_status }}</span></td></tr>
+</table>
+
+<div class="dialog_section tasks_section">tasks</div>
+
+<table cellpadding="0" cellspacing="0" class="task_list" style="width: 100%;">
+	{% for session in process.get_sessions %}
+	<tr>
+		<td style="width: 60px; padding-right: 0px;">
+			<div class="task_status {{ session.get_status }}">{{ session.get_status }}</div>
+		</td>
+
+		<td>
+		<b>{{ session.task.name }}</b>
+		<div class="subtext">
+		{% if session.completed %}
+		completed on {{ session.completed_date|date }}, {{ session.completed_date|time }}
+		{% else %}
+		state: {{ session.state }}
+		{% endif %}
+		</div>
+		</td>
+
+		<td class="command" style="text-align: right;">
+			<a href="/taskmanager/sessions/{{ session.id }}/details/" rel="facebox">details</a>
+		</td>
+	</tr>
+	{% endfor %}
+</table>
+
+<table cellpadding="0" cellspacing="0" class="task_list" style="width: 100%;">
+	{% for task in process.get_pending_tasks %}
+	<tr>
+		<td style="width: 60px; padding-right: 0px;">
+			<div class="task_status {{ task.get_status }}">{{ task.get_status }}</div>
+		</td>
+
+		<td>
+		<b>{{ task.task.name }}</b>
+		<div class="subtext">scheduled for {{ task.schedule_date|date }}, {{ task.schedule_date|time }}</div>
+		</td>
+
+		<td class="command" style="text-align: right;">
+			<a href="/taskmanager/tasks/{{ task.id }}/details/" rel="facebox">details</a>
+		</td>
+	</tr>
+	{% endfor %}
+</table>
+
+<div>&nbsp;</div>
+
+<div class="dialog_section actions_section">actions</div>
+
+<div style="padding: 10px;">
+	<input id="deactivate_process_button" type="button" value="deactivate" />
+	<input id="remove_process_button" type="button" value="remove process" />
+</div>
+
+<script type="text/javascript">
+$(document).ready(function() {
+	$('#dialog_container a[rel*=facebox]').facebox();
+
+	$("#deactivate_process_button").click(function() {
+		if (!confirm('Are you sure that you want to deactivate this process? All pending tasks will be cancelled and all running sessions will be timed out.'))
+			return;
+
+		$.ajax({
+			type: 'POST',
+			dataType: 'text',
+			url: '/taskmanager/processes/{{ process.id }}/command/',
+			data: {'command': 'deactivate'},
+			success: function(data) {
+				if (data == "REQUIRES_REFRESH")
+					location.reload(true);
+			}
+		});
+	});
+
+	$("#remove_process_button").click(function() {
+		if (!confirm('Are you sure that you want to remove this process? All associated data will be deleted!'))
+			return;
+
+		$.ajax({
+			type: 'POST',
+			dataType: 'text',
+			url: '/taskmanager/processes/{{ process.id }}/command/',
+			data: {'command': 'remove'},
+			success: function(data) {
+				if (data == "REQUIRES_REFRESH")
+					location.reload(true);
+			}
+		});
+	});
+});
+</script>
+{% endblock %}

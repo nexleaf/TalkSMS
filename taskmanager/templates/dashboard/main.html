@@ -1,0 +1,95 @@
+{% extends "dashboard/layout.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block header %}Task Manager :: Dashboard{% endblock %}
+
+{% block includes %}
+	{% block context_includes %}
+	{% endblock %}
+{% endblock %}
+
+{% block styles %}
+	{% block context_styles %}
+	{% endblock %}
+{% endblock %}
+
+{% block scripts %}
+
+	$(document).ready(function() {
+		function refreshView() {
+			// attach facebox to links
+			$('a[rel*=facebox]').facebox();
+		}
+
+		// make sure we set the page up the first time it runs
+		// (in the future, this will be called when we do ajax refreshes)
+		refreshView();
+
+		// bind up pointless chooser junk
+		//
+		$(".chooser").each(function() {
+			var $items = $(this).find(".choosable");
+			var $parent = $(this).closest(".column");
+
+			$items.click(function(event) {
+				$items.removeClass("selected");
+				$(this).addClass("selected");
+				$parent.trigger("selected", [$(this)]);
+
+				// event.preventDefault();
+				// event.stopPropogation();
+			});
+		});
+	});
+
+	{% block context_scripts %}
+	{% endblock %}
+{% endblock %}
+
+{% block content %}
+	<!--
+	<div class="header" style="margin-bottom: 0.5em;">&#149; manage users and tasks:</div>
+	-->
+
+	<table class="structural" cellpadding="0" cellspacing="0">
+		<tr class="tabrow">
+			<td valign="bottom">
+				<div class="tabber">&nbsp;</div>
+			</td>
+
+			<td valign="bottom">
+				{% block tabs %}<div class="tabber">&nbsp;</div>{% endblock %}
+			</td>
+
+			<td valign="bottom">
+				<div class="tabber" style="text-align: right; padding-right: 5px; font-weight: normal; color: #555;">&nbsp;
+				{% if user %}
+				logged in as <b>{{ user }}</b> - <a href="/taskmanager/logout">log out</a>
+				{% endif %}
+				</div>
+			</td>
+		</tr>
+
+		<tr>
+			<td valign="top" id="user_cell" class="outer">
+				<div class="column_container">
+					{% block leftlist %}{% endblock %}
+				</div>
+			</td>
+
+			<td valign="top" id="content_cell" class="outer" colspan="2">
+				{% block context_content %}{% endblock %}
+			</td>
+		</tr>
+	</table>
+
+	<!--
+	========================================
+	=== the land of hidden divs
+	========================================
+	-->
+
+	{% block context_divs %}
+	{% endblock %}
+
+{% endblock %}

@@ -1,0 +1,210 @@
+{% extends "dashboard/contexts/patients/main.html" %}
+
+{% block section_content %}
+<table cellpadding="0" cellspacing="0" class="processes_view_table" style="min-height: 300px; width: 100%; height: 100%; border: solid 1px gray;">
+	<tr>
+
+	<td id="schedule_column" valign="top" class="column" width="33%" style="border-right: solid 1px #999;">
+		<div class="col_header" style="position: relative;">
+			Scheduled
+			<a id="schedule_show_add_btn" class="header_command" href="#" alt="Schedule a Task">
+				<img src="/static/taskmanager/icons/Add%20Green%20Button.png" border="0" />
+			</a>
+		</div>
+
+		<div class="itemlist">
+			<table cellpadding="0" cellspacing="0" class="task_list">
+				{% for process in pending_processes %}
+				<tr>
+					<td style="width: 60px; padding-right: 0px;">
+						<div class="task_status pending">pending</div>
+					</td>
+
+					<td>
+					<b>{{ process }}</b>
+					{% for task in process.get_pending_tasks %}
+					<div class="subtext" style="color: #99963B;">{{ task.task.name }} on {{ task.schedule_date|date }}, {{ task.schedule_date|time }}</div>
+					{% endfor %}
+					</td>
+
+					<td class="command">
+						<a rel="facebox" href="/taskmanager/processes/{{ process.id }}/details">details</a>
+					</td>
+				</tr>
+				{% endfor %}
+			</table>
+		</div>
+	</div>
+
+	<td id="running_column" valign="top" class="column" width="33%" style="border-right: solid 1px #999;">
+		<div class="col_header">
+		Running
+		</div>
+
+		<div class="itemlist">
+			<table cellpadding="0" cellspacing="0" class="task_list">
+				{% for process in current_processes %}
+				<tr>
+					<td style="width: 60px; padding-right: 0px;">
+						<div class="task_status running">running</div>
+					</td>
+
+					<td>
+					<b>{{ process }}</b>
+					{% with process.get_pending_tasks|length as pending_task_count %}{% if pending_task_count > 0 %}
+						<div class="subtext" style="color: #99963B;">{{ pending_task_count }} pending task{{ pending_task_count|pluralize }}</div>
+					{% endif %}{% endwith %}
+					{% with process.get_current_sessions|length as running_session_count %}{% if running_session_count > 0 %}
+						<div class="subtext" style="color: #3B7199;">{{ running_session_count }} running session{{ running_session_count|pluralize }}</div>
+					{% endif %}{% endwith %}
+					{% with process.get_completed_sessions|length as completed_session_count %}{% if completed_session_count > 0 %}
+						<div class="subtext" style="color: #3a7;">{{ completed_session_count }} completed session{{ completed_session_count|pluralize }}</div>
+					{% endif %}{% endwith %}
+					</td>
+
+					<td class="command">
+						<a rel="facebox" href="/taskmanager/processes/{{ process.id }}/details">details</a>
+					</td>
+				</tr>
+				{% endfor %}
+			</table>
+		</div>
+	</div>
+
+	<td id="results_column" valign="top" class="column" width="33%">
+		<div class="col_header">
+		Completed
+		</div>
+
+		<div class="itemlist" style="border-right: none;">
+			<table cellpadding="0" cellspacing="0" class="task_list">
+				{% for process in completed_processes %}
+				<tr>
+					<td style="width: 60px; padding-right: 0px;">
+						<div class="task_status past">past</div>
+					</td>
+
+					<td>
+					<b>{{ process }}</b>
+					{% with process.get_completed_sessions|length as completed_session_count %}
+						<div class="subtext" style="margin-top: 3px; color: #3a7;">{{ completed_session_count }} completed session{{ completed_session_count|pluralize }}</div>
+					{% endwith %}
+					</td>
+
+					<td class="command">
+						<a rel="facebox" href="/taskmanager/processes/{{ process.id }}/details">details</a>
+					</td>
+				</tr>
+				{% endfor %}
+			</table>
+		</div>
+	</div>
+
+	</tr>
+</table>
+{% endblock %}
+
+{% block section_divs %}
+<div id="schedule_add_dialog" class="column_dialog">
+	<form id="scheduler_form" action="{% url taskmanager.subviews.contexts.patients.add_scheduled_process %}" method="POST">
+		<div style="font-weight: bold; font-family: Verdana, sans-serif; font-size: 22px; margin-bottom: 0.5em;">
+		Schedule a Process
+		</div>
+
+		<input type="hidden" name="return_page" value="{{ current_page }}" />
+		<input type="hidden" name="patient" value="{{ selected_patientid }}" />
+
+		{% if error_msg %}
+		<div class="errorbox">
+			<b>error:</b> {{ error_msg }}
+		</div>
+		{% endif %}
+
+		<table class="vertical" style="width: 100%; margin-bottom: 0px;">
+			<tr><td class="label" style="width: 100px;">Task:</td><td>
+				<select class="dropper" id="task_selector" name="task">
+				{% for task in tasktemplates %}
+					<option value="{{ task.id }}">{{ task.name }}</option>
+				{% endfor %}
+				</select>
+			</td></tr>
+		</table>
+
+		<div id="custom_args" style="padding-left: 10px; color: #222; background: #ddd; margin: 0px -10px;">
+		</div>
+
+		<table class="vertical" style="width: 100%;">
+			<tr><td class="label" style="width: 100px;">Date:</td><td>
+				<input type="text" class="date_picker" name="scheduled_date" />
+			</td></tr>
+			<tr><td class="label" style="width: 100px;">Time:</td><td>
+				<input type="text" class="time_picker" name="scheduled_time" />
+			</td></tr>
+
+			<tr><td class="label">&nbsp;</td><td align="right"><input type="submit" name="schedule" value="Schedule"></td></tr>
+		</table>
+	</form>
+</div>
+{% endblock %}
+
+{% block section_scripts %}
+$(document).ready(function() {
+	// make the time/date picker
+	//
+	$('.date_picker').calendricalDate({ usa: true });
+	$('.time_picker').calendricalTime({ usa: true });
+
+	// bind up form validation checker
+	//
+	$("form#scheduler_form").submit(function() {
+		var $date_picker = $("form#scheduler_form .date_picker");
+		var $time_picker = $("form#scheduler_form .time_picker");
+
+		if ($date_picker.val() == "" || $time_picker.val() == "") {
+			// show error message
+			if ($date_picker.val() == "")
+				$date_picker.addClass("invalid_field");
+			else
+				$date_picker.removeClass("invalid_field");
+
+			if ($time_picker.val() == "")
+				$time_picker.addClass("invalid_field");
+			else
+				$time_picker.removeClass("invalid_field");
+
+			return false;
+		}
+	});
+
+	// bind up schedule form adder dialogs
+	$("#schedule_show_add_btn").click(function() {
+		var $dialog = $("#schedule_add_dialog");
+		var $header = $("#schedule_column .col_header");
+
+		toggleDialog($(this), $dialog, $header);
+	});
+
+	// bind up ajax requestor to get extra form fields when they select a task
+	function syncArguments($me) {
+		// refresh the custom arguments div
+		var $customargs_div = $("form#scheduler_form #custom_args");
+
+		$customargs_div.slideUp(function() {
+			$.ajax({
+				url: '/taskmanager/tasktemplates/' + $me.val() + '/fields/',
+				success: function(data) {
+					$customargs_div.html(data);
+					$customargs_div.slideDown();
+				}
+			});
+		});
+	}
+
+	$("form#scheduler_form #task_selector").change(function() {
+		syncArguments($(this));
+	});
+
+	// and do an initial sync when the page loads
+	syncArguments($("form#scheduler_form #task_selector"));
+});
+{% endblock %}

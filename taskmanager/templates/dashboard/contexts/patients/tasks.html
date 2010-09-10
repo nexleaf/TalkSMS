@@ -1,0 +1,132 @@
+{% extends "dashboard/contexts/patients/main.html" %}
+
+{% block section_content %}
+<table cellpadding="0" cellspacing="0" class="tasks_view_table" style="min-height: 300px; width: 100%; height: 100%; border: solid 1px gray;">
+	<tr>
+
+	<td id="schedule_column" valign="top" class="column" width="33%" style="border-right: solid 1px #999;">
+		<div class="col_header" style="position: relative;">
+			Scheduled
+			<!--
+			<a id="schedule_show_add_btn" class="header_command" href="#" alt="Schedule a Task">
+				<img src="/static/taskmanager/icons/Add%20Green%20Button.png" border="0" />
+			</a>
+			-->
+		</div>
+
+		<div class="itemlist">
+			<table cellpadding="0" cellspacing="0" class="task_list" style="width: 100%;">
+				{% for task in pending_tasks %}
+				<tr>
+					<td style="width: 60px; padding-right: 0px;">
+						<div class="task_status {{ task.get_status }}">{{ task.get_status }}</div>
+					</td>
+
+					<td>
+					<b>{{ task.task.name }}</b>
+					<div class="subtext">scheduled for {{ task.schedule_date|date }}, {{ task.schedule_date|time }}</div>
+					{% if task.process %}<div class="subtext process_parent"><b>process:</b> {{ task.process }}</div>{% endif %}
+					</td>
+
+					<td class="command" style="text-align: right;">
+						<a href="/taskmanager/tasks/{{ task.id }}/details/" rel="facebox">details</a>
+					</td>
+				</tr>
+				{% endfor %}
+			</table>
+		</div>
+	</td>
+
+	<td id="running_column" valign="top" class="column" width="33%" style="border-right: solid 1px #999;">
+		<div class="col_header">
+		Running
+		</div>
+
+		<div class="itemlist">
+			<table cellpadding="0" cellspacing="0" class="task_list" style="width: 100%;">
+				{% for session in current_sessions %}
+				<tr>
+					<td style="width: 60px; padding-right: 0px;">
+						<div class="task_status running">running</div>
+					</td>
+
+					<td>
+					<b>{{ session.task.name }}</b>
+					<div class="subtext">state: {{ session.state }}</div>
+					{% if session.process %}<div class="subtext process_parent"><b>process:</b> {{ session.process }}</div>{% endif %}
+					</td>
+
+					<td class="command" style="text-align: right;">
+						<a href="/taskmanager/sessions/{{ session.id }}/details/" rel="facebox">details</a>
+					</td>
+				</tr>
+				{% endfor %}
+			</table>
+		</div>
+	</td>
+
+	<td id="results_column" valign="top" class="column" width="33%">
+		<div class="col_header">
+		Completed
+		</div>
+
+		<div class="itemlist" style="border-right: none;">
+			<table cellpadding="0" cellspacing="0" class="task_list" style="width: 100%;">
+				{% for session in completed_sessions %}
+				<tr>
+					<td style="width: 60px; padding-right: 0px;">
+						<div class="task_status past">complete</div>
+					</td>
+
+					<td>
+					<b>{{ session.task.name }}</b>
+					<div class="subtext">completed on {{ session.completed_date|date }}, {{ session.completed_date|time }}</div>
+					{% if session.process %}<div class="subtext process_parent"><b>process:</b> {{ session.process }}</div>{% endif %}
+					</td>
+
+					<td class="command" style="text-align: right;">
+						<a href="/taskmanager/sessions/{{ session.id }}/details/" rel="facebox">details</a>
+					</td>
+				</tr>
+				{% endfor %}
+			</table>
+		</div>
+	</td>
+
+	</tr>
+</table>
+{% endblock %}
+
+{% block section_divs %}
+<div id="schedule_add_dialog" class="column_dialog">
+	<form id="scheduler_form" action="{% url taskmanager.subviews.contexts.patients.add_scheduled_task %}" method="POST">
+		<div style="font-weight: bold; font-family: Verdana, sans-serif; font-size: 22px; margin-bottom: 0.5em;">Schedule a Task</div>
+
+		<input type="hidden" name="return_page" value="{{ current_page }}" />
+		<input type="hidden" name="patient" value="{{ selected_patientid }}" />
+
+		{% if error_msg %}
+		<div class="errorbox">
+			<b>error:</b> {{ error_msg }}
+		</div>
+		{% endif %}
+
+		<table class="vertical">
+			<tr><td class="label">Task:</td><td>
+				<select class="dropper" name="task">
+				{% for task in tasktemplates %}
+					<option value="{{ task.id }}">{{ task.name }}</option>
+				{% endfor %}
+				</select>
+			</td></tr>
+
+			<tr><td class="label" style="position: relative;">Date:</td><td>
+				<input type="text" class="date_picker" name="scheduled_date" />
+				<input type="text" class="time_picker" name="scheduled_time" />
+			</td></tr>
+
+			<tr><td class="label">&nbsp;</td><td align="right"><input type="submit" name="schedule" value="Schedule"></td></tr>
+		</table>
+	</form>
+</div>
+{% endblock %}

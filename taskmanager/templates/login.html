@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+
+{% block title %}Log In{% endblock %}
+{% block header %}{% endblock %}
+
+{% block styles %}
+#center_div {
+	position:absolute;
+	top: 40%;
+	left: 50%;
+	width: 600px; height: 200px;
+	margin-top: -100px; /*set to a negative number 1/2 of your height*/
+	margin-left: -300px; /*set to a negative number 1/2 of your width*/
+}
+
+#desc_div {
+	float: left; width: 250px;
+}
+
+#login_div {
+	float: left; width: 310px;
+	background-color: #eee; padding: 10px; padding-left: 30px;
+	-moz-border-radius: 10px;
+	-webkit-border-radius: 10px;
+}
+
+.error_box { padding: 5px; color: #922; }
+
+.vertical .command { text-align: right; }
+{% endblock %}
+
+{% block content %}
+<div id="center_div">
+	<div id="desc_div">
+		<h2><img style="margin-bottom: -12px; margin-right: 0px;" src="/static/taskmanager/misc-icons/taskmanager.png"> Task Manager</h2>
+
+		<p>Task Manager is an interface for clinicians to schedule and monitor tasks associated with patients under their care.</p>
+		<p>Please enter your credentials on the righthand side to log in.</p>
+	</div>
+
+	<div id="login_div">
+		<h2>Log in</h1>
+		{% if error %}
+		<div class="error_box"><b>error:</b> {{ error }}</div>
+		{% endif %}
+		<form method="POST" action="/taskmanager/login">
+			<table class="vertical">
+				<tr><td class="label">username:</td><td><input type="text" name="username" /></td></tr>
+				<tr><td class="label">password:</td><td><input type="password" name="password" /></td></tr>
+				<tr><td colspan="2" class="command"><input type="submit" name="login" value="log in" /></td></tr>
+			</table>
+
+			{% if next %}
+				<input type="hidden" name="next" value="{{ next }}" />
+			{% endif %}
+		</form>
+	</div>
+</div>
+{% endblock %}

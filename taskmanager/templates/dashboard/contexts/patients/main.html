@@ -1,0 +1,126 @@
+{% extends "dashboard/main.html" %}
+
+{% block context_includes %}
+{% block section_includes %}{% endblock %}
+{% endblock %}
+
+{% block context_styles %}
+{% block section_styles %}{% endblock %}
+{% endblock %}
+
+{% block context_scripts %}
+
+$(document).ready(function() {
+	// bind up patient form adder dialogs
+	$("#patient_show_add_btn").live('click', function() {
+		var $dialog = $("#patient_add_dialog");
+		var $header = $("#users_column .col_header");
+
+		toggleDialog($(this), $dialog, $header);
+	});
+});
+
+{% block section_scripts %}{% endblock %}
+{% endblock %}
+
+<!-- tab chooser goes in here somewhere -->
+{% block tabs %}
+	{% if selected_patientid %}
+	<ul class="tabber" id="tabnav">
+		<li class="tab2"><a href="/taskmanager/patients/{{ selected_patientid }}/processes/"><img src="/static/taskmanager/fugue/icons/gear.png" border="0" class="iconified_tab" />Processes</a></li>
+		<li class="tab3"><a href="/taskmanager/patients/{{ selected_patientid }}/tasks/"><img src="/static/taskmanager/fugue/icons/clock-frame.png" border="0" class="iconified_tab" />Tasks</a></li>
+		<li class="tab1"><a href="/taskmanager/patients/{{ selected_patientid }}/history/"><img src="/static/taskmanager/fugue/icons/balloon-white.png" border="0" class="iconified_tab" />History</a></li>
+		<li class="tab4"><a href="/taskmanager/patients/{{ selected_patientid }}/calendar/"><img src="/static/taskmanager/fugue/icons/calendar.png" border="0" class="iconified_tab" />Calendar</a></li>
+	</ul>
+	{% else %}
+	<ul class="tabber" id="tabnav">
+		<li class="tab2"><a href="javascript:void(0)"><img src="/static/taskmanager/fugue/icons/gear.png" border="0" class="iconified_tab" />Processes</a></li>
+		<li class="tab3"><a href="javascript:void(0)"><img src="/static/taskmanager/fugue/icons/clock-frame.png" border="0" class="iconified_tab" />Tasks</a></li>
+		<li class="tab1"><a href="javascript:void(0)"><img src="/static/taskmanager/fugue/icons/balloon-white.png" border="0" class="iconified_tab" />History</a></li>
+		<li class="tab4"><a href="javascript:void(0)"><img src="/static/taskmanager/fugue/icons/calendar.png" border="0" class="iconified_tab" />Calendar</a></li>
+	</ul>
+	{% endif %}
+{% endblock %}
+
+<!-- list goes over here -->
+{% block leftlist %}
+	<div id="users_column" class="column">
+		<div class="col_header" style="position: relative;">
+			Patients
+			<a id="patient_show_add_btn" class="header_command" href="#" alt="Add a Patient">
+				<img src="/static/taskmanager/icons/Add%20Green%20Button.png" border="0" />
+			</a>
+		</div>
+
+		<div class="itemlist chooser" style="min-height: 300px;">
+			{% for patient in patients %}
+			<a class="{% if patient.id|lower == selected_patientid|lower %}selected{% endif %} choosable" href="/taskmanager/patients/{{ patient.id }}/{{ section|default:'processes' }}">
+				{{ patient.first_name }} {{ patient.last_name }}
+				<div class="address_box">{{ patient.address }}</div>
+			</a>
+			{% endfor %}
+		</div>
+	</div>
+{% endblock %}
+
+<!-- content area goes in here, too -->
+{% block context_content %}
+	{% if selected_patientid %}
+		<div id="section_holder">
+			{% block section_content %}{% endblock %}
+		</div>
+
+		<div style="text-align: right;">
+			<b>server time:</b> {% now "N j Y, P" %}
+		</div>
+	{% else %}
+		<table cellpadding="0" cellspacing="0" style="min-height: 300px; width: 100%; border: solid 1px gray;">
+			<tr>
+				<td valign="top" class="column" style="height: auto;">
+					<div class="col_header">&nbsp;</div>
+				</td>
+			</tr>
+
+			<tr>
+				<td>
+					<div style="min-height: 300px; background: url('/static/taskmanager/images/diagonal-gray.png');"></div>
+				</td>
+			</tr>
+		</table>
+	{% endif %}
+{% endblock %}
+
+{% block context_divs %}
+	<div id="patient_add_dialog" class="column_dialog">
+		<form id="patient_form" action="{% url taskmanager.subviews.contexts.patients.add_patient %}" method="POST">
+			<div style="font-weight: bold; font-family: Verdana, sans-serif; font-size: 22px; margin-bottom: 0.5em;">Add a Patient</div>
+
+			<input type="hidden" name="return_page" value="{{ current_page }}" />
+
+			{% if error_msg %}
+			<div class="errorbox">
+				<b>error:</b> {{ error_msg }}
+			</div>
+			{% endif %}
+
+			<table class="vertical">
+				<tr><td class="label">Given Name:</td><td>
+					<input type="text" name="first_name" />
+				</td></tr>
+
+				<tr><td class="label">Surname:</td><td>
+					<input type="text"  name="last_name" />
+				</td></tr>
+
+				<tr><td class="label">Email Address:</td><td>
+					<input type="text"  name="address" />
+				</td></tr>
+
+				<tr><td class="label">&nbsp;</td><td align="right"><input type="submit" name="add_patient_btn" value="Create"></td></tr>
+			</table>
+		</form>
+	</div>
+
+	{% block section_divs %}
+	{% endblock %}
+{% endblock %}

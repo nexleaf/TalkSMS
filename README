@@ -1,0 +1,34 @@
+
+9/9/2010: 
+
+in order to branch, i've copied faisal's branch to /cens. 
+we'll get it working with rapidsms-dev, add our nexleaf/cens work.
+the result should be a functionally equivalent version of faisal's branch
+but, using our talksms lib and rapidsms-dev.
+
+install:
+* install Django 1.2.1
+* install rapidsms-core-dev:  http://github.com/rapidsms/rapidsms-core-dev
+* install django-reversion, django-dbtemplates
+* %rapidsms-admin.py startproject cens
+* %cd cens
+* %rapidsms-admin.py startapp taskmanager
+* %cd ../../
+* %rm -rf cens
+* %git clone git://github.com/SunilMenon/cens .
+
+run:
+* %cd cens
+* %./manage.py syncdb
+* %./manage.py scheduler
+* %./manage.py runrouter
+* %./manage.py runserver
+
+
+use: 
+* http://localhost:8000/admin/taskmanager; add users, tasks
+* http://localhost:8000/taskmanager; schedule tasks... 
+
+
+notes: 
+* updated rapidsms-core-dev: 8/25

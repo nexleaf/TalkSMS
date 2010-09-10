@@ -1,0 +1,57 @@
+{% extends "dashboard/contexts/patients/main.html" %}
+
+{% block section_content %}
+<table cellpadding="0" cellspacing="0" class="calendar_view_table" style="min-height: 300px; width: 100%; height: 100%; border: solid 1px gray;">
+	<tr>
+
+	<td id="calendar_column" valign="top" class="column" style="border-right: solid 1px #999;">
+		<div class="col_header">
+		Calendar
+		</div>
+
+		<div style="padding: 10px;">
+			<div id="page_calendar">
+			</div>
+		</div>
+	</td>
+
+	</tr>
+</table>
+{% endblock %}
+
+{% block section_scripts %}
+$(document).ready(function() {
+	$("#page_calendar").fullCalendar({
+		height: 600,
+		header: {
+			left:   'title',
+			center: '',
+			right:  'today prev,next month,basicWeek'
+		},
+		weekMode: 'variable',
+		events: [
+			{% for task in tasks %}
+			{
+				title: "{{ task.task.name }}",
+				id: "{{ task.id }}",
+				procname: "{{ task.process.name }}",
+				start: "{{ task.schedule_date }}",
+				className: "{{ task.get_status }}_event scheduledtask_event_icon",
+				allDay: false
+			}{% if not forloop.last %},{% endif %}
+			{% endfor %}
+		],
+		eventClick: function(calEvent, jsEvent, view) {
+			// bring up the facebox box
+			$.facebox({
+				ajax: '/taskmanager/tasks/' + calEvent.id + '/details/'
+			});
+		},
+		eventRender: function(event, element) {
+			// render the process name into the info box
+			var $targ = element.find(".fc-event-title");
+			$targ.html("<br /><b>" + event.procname + "</b><br />" + event.title);
+		}
+	});
+});
+{% endblock %}

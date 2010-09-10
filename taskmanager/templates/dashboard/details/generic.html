@@ -1,0 +1,20 @@
+<html>
+	<head>
+		<title>{% block title %}{% endblock %}</title>
+
+		<link rel="shortcut icon" href="/static/taskmanager/favicon.ico" type="image/x-icon" />
+		<link rel="stylesheet" type="text/css" href="/static/taskmanager/taskmanager_details.css" />
+	</head>
+
+	<body class="dialog">
+		<div id="dialog_container">
+			<div class="dialog_header">
+			{% block header %}{% endblock %}
+			</div>
+
+			<div style="padding: 10px;">
+			{% block body %}{% endblock %}
+			</div>
+		</div>
+	</body>
+</html>
