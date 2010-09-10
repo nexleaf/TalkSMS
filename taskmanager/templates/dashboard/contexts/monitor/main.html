@@ -1,0 +1,78 @@
+{% extends "dashboard/main.html" %}
+
+{% block context_includes %}
+{% block section_includes %}{% endblock %}
+{% endblock %}
+
+{% block context_styles %}
+{% block section_styles %}{% endblock %}
+{% endblock %}
+
+{% block context_scripts %}
+{% block section_scripts %}{% endblock %}
+{% endblock %}
+
+<!-- tab chooser goes in here somewhere -->
+{% block tabs %}
+	{% if selected_itemid %}
+	<ul class="tabber" id="tabnav">
+		<li class="tab1"><a href="/taskmanager/monitor/{{ selected_itemid }}/status/"><img src="/static/taskmanager/fugue/icons/switch.png" border="0" class="iconified_tab" />Status</a></li>
+		<li class="tab2"><a href="/taskmanager/monitor/{{ selected_itemid }}/alerts/"><img src="/static/taskmanager/fugue/icons/exclamation-button.png" border="0" class="iconified_tab" />Alerts</a></li>
+	</ul>
+	{% else %}
+	<ul class="tabber" id="tabnav">
+		<li class="tab1"><a href="javascript:void(0)"><img src="/static/taskmanager/fugue/icons/switch.png" border="0" class="iconified_tab" />Status</a></li>
+		<li class="tab2"><a href="javascript:void(0)"><img src="/static/taskmanager/fugue/icons/exclamation-button.png" border="0" class="iconified_tab" />Alerts</a></li>
+	</ul>
+	{% endif %}
+{% endblock %}
+
+<!-- list goes over here -->
+{% block leftlist %}
+	<div id="monitor_column" class="column">
+		<div class="col_header" style="position: relative;">
+			Services
+		</div>
+
+		<div class="itemlist chooser" style="min-height: 300px;">
+			{% for task in tasks %}
+			<a class="{% if task.id|lower == selected_itemid|lower %}selected{% endif %} choosable" href="/taskmanager/monitor/{{ task.id }}/{{ section|default:'templates' }}">
+				{{ task.name }}
+				<div class="address_box">from: {{ task.module }}</div>
+			</a>
+			{% endfor %}
+		</div>
+	</div>
+{% endblock %}
+
+<!-- content area goes in here, too -->
+{% block context_content %}
+	{% if selected_itemid %}
+		<div id="section_holder">
+			{% block section_content %}{% endblock %}
+		</div>
+
+		<div style="text-align: right;">
+			<b>server time:</b> {% now "N j Y, P" %}
+		</div>
+	{% else %}
+		<table cellpadding="0" cellspacing="0" style="min-height: 300px; width: 100%; border: solid 1px gray;">
+			<tr>
+				<td valign="top" class="column" style="height: auto;">
+					<div class="col_header">&nbsp;</div>
+				</td>
+			</tr>
+
+			<tr>
+				<td>
+					<div style="min-height: 300px; background: url('/static/taskmanager/images/diagonal-gray.png');"></div>
+				</td>
+			</tr>
+		</table>
+	{% endif %}
+{% endblock %}
+
+{% block context_divs %}
+	{% block section_divs %}
+	{% endblock %}
+{% endblock %}

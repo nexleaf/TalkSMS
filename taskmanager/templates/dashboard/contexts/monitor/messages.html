@@ -1,48 +1,37 @@
 {% extends "dashboard/contexts/tasks/main.html" %}
 
-{% block section_scripts %}
-$(document).ready(function() {
-	// find each textbox and highlight the save button when it's changed
-	$(".content textarea").change(function() {
-		var $saveframe = $(this).closest(".template_entry").find(".commands");
-		$saveframe.find(".remember_save").fadeIn();
-
-		// disable the other save buttons on the form to prevent disaster?
-
-		// and make this sucka never fire again
-		$(this).unbind('change');
-	});
-});
-{% endblock %}
-
 {% block section_styles %}
 .template_entry {
 	padding: 5px;
 }
 
 .template_entry .thing {
+	background-color: white;
 }
 
 .template_entry .template_header {
 	background-image: url('/static/taskmanager/fugue/bonus/icons-24/balloon.png');
 	background-repeat: no-repeat; background-position: 5px center;
+	-moz-border-radius: 5px 5px 0px 0px;
+	-webkit-border-radius: 5px 5px 0px 0px;
 
 	width: 600px;
 	padding: 10px; padding-left: 35px; font-weight: bold; font-size: 20px;
 }
 
 .template_entry .content {
+	-moz-border-radius: 0px 5px 0px 5px;
+	-webkit-border-radius: 0px 5px 0px 5px;
 
 	padding: 10px; padding-left: 35px;
 }
 
 .template_entry .commands {
-	float: right; width: 300px; z-index: 8;
-	text-align: right; padding: 10px; padding-top: 0px;
-}
+	-moz-border-radius: 0px 0px 5px 5px;
+	-webkit-border-radius: 0px 0px 5px 5px;
 
-.template_entry .commands .remember_save {
-	color: #5ac; font-weight: bold;
+	float: right; width: 100px; z-index: 8;
+	text-align: right; padding: 10px; padding-top: 0px;
 }
 {% endblock %}
 
@@ -66,8 +55,6 @@ $(document).ready(function() {
 					</div>
 
 					<div class="commands thing">
-						<span class="remember_save" style="display: none;">remember to save</span>
-
 						<input type="hidden" name="return_page" value="{{ current_page }}" />
 						<input type="hidden" name="templateid" value="{{ template.id }}" />
 						<input type="submit" style="width: 100px;" value="save" />

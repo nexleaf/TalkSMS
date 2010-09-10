@@ -50,6 +50,7 @@
 		#context_switcher_dialog {
 			background: white; border: solid 3px gray;
 			position: absolute; padding: 0px; display: none; z-index: 5;
+			-moz-border-radius: 0px 5px 5px 5px;
 		}
 
 		#context_switcher_dialog a {
@@ -61,9 +62,14 @@
 		#context_switcher_dialog a:hover {
 			background-color: #E3EFF3;
 		}
+		#context_switcher_dialog a.viewing {
+			/*
+			border-right: solid 10px #cce;
+			*/
+		}
 
 		#context_switcher_dialog a .subby {
-			font-size: 12px; color: #777; margin-left: 3px; font-weight: normal;
+			font-size: 12px; color: #777; margin-left: 6px; font-weight: normal;
 		}
 
 		.patients_context {
@@ -80,6 +86,12 @@
 			background-image: url('/static/taskmanager/icons/Run-Stencil.png');
 		}
 
+		.monitor_context {
+			background-image: url('/static/taskmanager/icons/Monitors.png');
+		}
+		.monitor_context.selected {
+			background-image: url('/static/taskmanager/icons/Monitors-Stencil.png');
+		}
 		{% block styles %}{% endblock %}
 		</style>
 
@@ -150,7 +162,10 @@
 
 			<div style="float: left; width: 600px; height: 30px; padding: 0px;">
 				<div style="font-weight: bold; font-size: 28px; position: relative; top: 12px; padding-left: 2px;">
+				<!--
 				{% block header %}{% endblock %}
+				-->
+				Task Manager :: {{ context|capfirst }}
 				</div>
 			</div>
 		</div>
@@ -159,13 +174,17 @@
 
 		<!-- the context switcher is itself a hidden div -->
 		<div id="context_switcher_dialog" style="width: 280px;">
-			<a class="patients_context" href="/taskmanager/patients/" style="border-bottom: solid 1px #ccc;">
+			<a class="patients_context {% if context == 'patients' %}viewing{% endif %}" href="/taskmanager/patients/" style="border-bottom: solid 1px #ccc;">
 				Patients
 				<div class="subby">processes, tasks, history, calendar</div>
 			</a>
-			<a class="tasks_context" href="/taskmanager/tasks/">
+			<a class="tasks_context {% if context == 'tasks' %}viewing{% endif %}" href="/taskmanager/tasks/" style="border-bottom: solid 1px #ccc;">
 				Task Editor
 				<div class="subby">templates, messages</div>
+			</a>
+			<a class="monitor_context {% if context == 'monitor' %}viewing{% endif %}" href="/taskmanager/monitor/">
+				System Monitor
+				<div class="subby">alerts, statistics (?)</div>
 			</a>
 		</div>
 	</body>

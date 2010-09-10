@@ -103,3 +103,20 @@ td.column  { height:     352px; }
 
 .messages_view_table #messages_column { width: 100%; }
 .messages_view_table #messages_column .col_header { background: #ccc url('/static/taskmanager/fugue/bonus/icons-32/balloon-ellipsis.png') no-repeat 5px center; padding-left: 45px; }
+
+/*
+=========================================
+=== Monitor Context
+=========================================
+*/
+
+/* icon assignments */
+#monitor_column { width: 100%; }
+#monitor_column .col_header { background: #ccc url('/static/taskmanager/icons/Monitors.png') no-repeat 5px center; padding-left: 45px; }
+#monitor_column .choosable { background-image: url('/static/taskmanager/icons/Monitor.png'); background-repeat: no-repeat; background-position: 5px center; padding-left: 45px; }
+
+.templates_view_table #templates_column { width: 100%; }
+.templates_view_table #templates_column .col_header { background: #ccc url('/static/taskmanager/fugue/bonus/icons-32/script-text.png') no-repeat 5px center; padding-left: 45px; }
+
+.messages_view_table #messages_column { width: 100%; }
+.messages_view_table #messages_column .col_header { background: #ccc url('/static/taskmanager/fugue/bonus/icons-32/balloon-ellipsis.png') no-repeat 5px center; padding-left: 45px; }

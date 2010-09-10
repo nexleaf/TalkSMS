@@ -9,13 +9,16 @@ import taskmanager.subviews.details as details
 
 import taskmanager.subviews.contexts.patients as contexts_patients
 import taskmanager.subviews.contexts.tasks as contexts_tasks
+import taskmanager.subviews.contexts.monitor as contexts_monitor
 
 urlpatterns = patterns('',
     (r'^taskmanager/$', dashboard.default), # redirects to their last-viewed context (or 'patients' if none)
     (r'^taskmanager/login$', login.prompt_login),
     (r'^taskmanager/logout$', login.perform_logout),
 
+    # ================================
     # patients context
+    # ================================
     (r'^taskmanager/patients/?$', contexts_patients.default),
     (r'^taskmanager/patients/(?P<patientid>\d+)/processes/?$', contexts_patients.processes),
     (r'^taskmanager/patients/(?P<patientid>\d+)/tasks/?$', contexts_patients.tasks),
@@ -28,16 +31,25 @@ urlpatterns = patterns('',
     (r'^taskmanager/processes/add/?$', contexts_patients.add_scheduled_process),
     (r'^taskmanager/tasktemplates/(?P<tasktemplateid>\d+)/fields/?$', contexts_patients.get_tasktemplate_fields),
 
+    # ================================
     # tasks context
+    # ================================
     (r'^taskmanager/tasks/?$', contexts_tasks.default),
     (r'^taskmanager/tasks/(?P<taskid>\d+)/templates/?$', contexts_tasks.templates),
     (r'^taskmanager/tasks/(?P<taskid>\d+)/messages/?$', contexts_tasks.messages),
-
+                       
     # tasks context: POST targets
    (r'^taskmanager/tasks/templates/update/?$', contexts_tasks.update_template),
    (r'^taskmanager/tasks/messages/update/?$', contexts_tasks.update_message),
 
+    # ================================
+    # monitor context
+    # ================================
+    (r'^taskmanager/monitor/?$', contexts_monitor.default),
+
+    # ================================
     # details views
+    # ================================
     (r'^taskmanager/processes/(?P<processid>\d+)/details/?$', details.process_details),
     (r'^taskmanager/tasks/(?P<taskid>\d+)/details/?$', details.scheduledtask_details),
     (r'^taskmanager/sessions/(?P<sessionid>\d+)/details/?$', details.session_details),
