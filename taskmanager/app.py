@@ -1,6 +1,16 @@
 import rapidsms
 import sys, json, re
 
+import rapidsms.contrib.scheduler.app as sched
+from rapidsms.contrib.scheduler.models import EventSchedule, ALL
+
+import tasks.sms as sms
+import tasks.appt_tree
+import tasks.appointment_request
+import tasks.appointment_reminder
+import tasks.appointment_followup
+
+
 from taskmanager.models import *
 from datetime import datetime
 
