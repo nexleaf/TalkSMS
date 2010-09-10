@@ -4,7 +4,7 @@ import sys, json, re
 from taskmanager.models import *
 from datetime import datetime
 
-class App(rapidsms.app.App):
+class App(rapidsms.apps.base.AppBase):
     def start(self):
         # maps patients to their state machines -- indexed for now
         self.dispatch = {}
