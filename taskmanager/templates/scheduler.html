@@ -97,7 +97,7 @@ function refreshForm() {
 
 	<div class="header">&#149; schedule a new task:</div>
 	<div class="section">
-		<form id="scheduler_form" action="{% url taskmanager.views.add_scheduled_task %}" method="POST">
+		<form id="scheduler_form" action="{% url taskmanager.views.add_scheduled_task %}" method="POST">{% csrf_token %}
 			<input type="hidden" name="return_page" value="{{ current_page }}" />
 
 			{% if error_msg %}

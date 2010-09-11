@@ -107,7 +107,7 @@
 -->
 
 <div id="schedule_add_dialog" class="column_dialog">
-	<form id="scheduler_form" action="{% url taskmanager.subviews.dashboard.add_scheduled_process %}" method="POST">
+	<form id="scheduler_form" action="{% url taskmanager.subviews.dashboard.add_scheduled_process %}" method="POST">{% csrf_token %}
 		<div style="font-weight: bold; font-family: Verdana, sans-serif; font-size: 22px; margin-bottom: 0.5em;">
 		Schedule a Process
 		</div>

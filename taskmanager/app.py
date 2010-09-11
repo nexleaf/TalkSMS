@@ -10,7 +10,6 @@ import tasks.appointment_request
 import tasks.appointment_reminder
 import tasks.appointment_followup
 
-
 from taskmanager.models import *
 from datetime import datetime
 

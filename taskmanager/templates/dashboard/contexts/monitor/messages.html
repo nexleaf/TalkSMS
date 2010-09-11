@@ -47,7 +47,7 @@
 		<div style="padding: 10px;">
 			{% for template in templates %}
 			<div class="template_entry" style="padding: 5px;">
-				<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_message %}">
+				<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_message %}">{% csrf_token %}
 					<div class="template_header thing">{{ template.name }}</div>
 
 					<div class="content thing">

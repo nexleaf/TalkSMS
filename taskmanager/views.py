@@ -3,9 +3,11 @@ from django.http import HttpResponseRedirect, HttpResponse
 from django.core.urlresolvers import reverse
 from django.template import RequestContext
 from taskmanager.models import *
+from django.views.decorators.csrf import csrf_protect
 
 from datetime import datetime
 
+@csrf_protect
 def scheduler(request):
     task_types = {
             'pending_tasks': ScheduledTask.objects.get_pending_tasks(),
@@ -28,8 +30,9 @@ def scheduler(request):
         field_vars['tasks'] = task_types['all_tasks']
         field_vars['task_filter'] = 'all_tasks'
         
-    return render_to_response('scheduler.html', field_vars)
+    return render_to_response('scheduler.html', field_vars, context_instance=RequestContext(request))
 
+@csrf_protect
 def add_scheduled_task(request):
     try:
         nt = ScheduledTask(
@@ -103,7 +106,6 @@ def proxy(request, url):
             args.append(request.POST.urlencode())
         
         out = urllib2.urlopen(*args)
-    
     # the request was successful, but the server
     # returned an error. as above, proxy it as-is,
     # so we can receive as much debug info as possible

@@ -6,6 +6,7 @@ from django.core.urlresolvers import reverse
 from django.template import RequestContext
 
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_protect
 
 from taskmanager.models import *
 import dbtemplates.models
@@ -30,6 +31,7 @@ def merge_contextuals(context, request, taskid):
         'tasks': Task.objects.all()
         })
 
+@csrf_protect
 @login_required
 def templates(request, taskid):
     field_vars = {
@@ -40,6 +42,7 @@ def templates(request, taskid):
     merge_contextuals(field_vars, request, taskid)
     return render_to_response('dashboard/contexts/tasks/templates.html', field_vars, context_instance=RequestContext(request))
 
+@csrf_protect
 @login_required
 def messages(request, taskid):
     field_vars = {
@@ -51,6 +54,7 @@ def messages(request, taskid):
     merge_contextuals(field_vars, request, taskid)
     return render_to_response('dashboard/contexts/tasks/messages.html', field_vars, context_instance=RequestContext(request))
 
+@csrf_protect
 @login_required
 def default(request):
     # add in the list of users so we can draw the user chooser

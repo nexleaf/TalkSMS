@@ -5,14 +5,16 @@ from django.http import HttpResponseRedirect, HttpResponseNotFound, HttpResponse
 from django.core.urlresolvers import reverse
 from django.template import RequestContext
 from taskmanager.models import *
+from django.views.decorators.csrf import csrf_protect
 
 from datetime import datetime
 
+@csrf_protect
 def process_details(request, processid):
     context = {
         'process': Process.objects.get(pk=processid)
     }
-    return render_to_response('dashboard/details/process.html', context)
+    return render_to_response('dashboard/details/process.html', context, context_instance=RequestContext(request))
 
 def process_command(request, processid):
     if request.method == "POST" and request.is_ajax():
@@ -35,11 +37,13 @@ def process_command(request, processid):
     # and render the default view
     return process_details(request, processid)
 
+@csrf_protect
 def scheduledtask_details(request, taskid):
     context = {
         'task': ScheduledTask.objects.get(pk=taskid)
     }
-    return render_to_response('dashboard/details/scheduledtask.html', context)
+    return render_to_response('dashboard/details/scheduledtask.html', context, context_instance=RequestContext(request))
+
 
 def scheduledtask_command(request, taskid):
     if request.method == "POST" and request.is_ajax():
@@ -56,11 +60,12 @@ def scheduledtask_command(request, taskid):
     # and render the default view
     return scheduledtask_details(request, taskid)
 
+@csrf_protect
 def session_details(request, sessionid):
     context = {
         'session': Session.objects.get(pk=sessionid)
     }
-    return render_to_response('dashboard/details/session.html', context)
+    return render_to_response('dashboard/details/session.html', context, context_instance=RequestContext(request))
 
 def session_command(request, sessionid):
     if request.method == "POST" and request.is_ajax():
@@ -78,8 +83,9 @@ def session_command(request, sessionid):
     # and render the default view
     return session_details(request, sessionid)
 
+@csrf_protect
 def patient_details(request, patientid):
     context = {
         'patient': Patient.objects.get(pk=patientid)
     }
-    return render_to_response('dashboard/details/patient.html', context)
+    return render_to_response('dashboard/details/patient.html', context, context_instance=RequestContext(request))

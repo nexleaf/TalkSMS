@@ -5,9 +5,11 @@ from django.http import HttpResponseRedirect, HttpResponseNotFound, HttpResponse
 from django.core.urlresolvers import reverse
 from django.template import RequestContext
 from taskmanager.models import *
+from django.views.decorators.csrf import csrf_protect
 
 from django.contrib.auth import authenticate, login, logout
 
+@csrf_protect
 def prompt_login(request):
     context = {}
     
@@ -42,7 +44,7 @@ def prompt_login(request):
         if 'next' in request.GET:
             context['next'] = request.GET['next']
             
-    return render_to_response('login.html', context)
+    return render_to_response('login.html', context, context_instance=RequestContext(request))
 
 def perform_logout(request):
     logout(request)

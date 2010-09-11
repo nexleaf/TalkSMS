@@ -6,6 +6,7 @@ from django.core.urlresolvers import reverse
 from django.template import RequestContext
 
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_protect
 
 from taskmanager.models import *
 
@@ -29,6 +30,7 @@ def merge_contextuals(context, request, patientid):
         'patients': Patient.objects.all()
         })
 
+@csrf_protect
 @login_required
 def processes(request, patientid):
     field_vars = {
@@ -42,6 +44,7 @@ def processes(request, patientid):
     merge_contextuals(field_vars, request, patientid)
     return render_to_response('dashboard/contexts/patients/processes.html', field_vars, context_instance=RequestContext(request))
 
+@csrf_protect
 @login_required
 def tasks(request, patientid):
     field_vars = {
@@ -55,6 +58,7 @@ def tasks(request, patientid):
     merge_contextuals(field_vars, request, patientid)
     return render_to_response('dashboard/contexts/patients/tasks.html', field_vars, context_instance=RequestContext(request))
 
+@csrf_protect
 @login_required
 def history(request, patientid):
     field_vars = {
@@ -95,6 +99,7 @@ def history(request, patientid):
     merge_contextuals(field_vars, request, patientid)
     return render_to_response('dashboard/contexts/patients/history.html', field_vars, context_instance=RequestContext(request))
 
+@csrf_protect
 @login_required
 def calendar(request, patientid):
     field_vars = {
@@ -107,6 +112,7 @@ def calendar(request, patientid):
     merge_contextuals(field_vars, request, patientid)
     return render_to_response('dashboard/contexts/patients/calendar.html', field_vars, context_instance=RequestContext(request))
 
+@csrf_protect
 @login_required
 def default(request):
     # add in the list of users so we can draw the user chooser
