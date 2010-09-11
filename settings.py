@@ -96,7 +96,7 @@ INSTALLED_APPS = [
     # for django-reversion
     # http://wiki.github.com/etianen/django-reversion/getting-started
     "reversion",
-    
+    "dbtemplates",    
     # our app
     "taskmanager", 
 ]
@@ -171,7 +171,12 @@ TEMPLATE_CONTEXT_PROCESSORS = [
 ]
 
 
-
+TEMPLATE_LOADERS = (
+    'django.template.loaders.filesystem.load_template_source',
+    'django.template.loaders.app_directories.load_template_source',
+    'dbtemplates.loader.load_template_source',
+)
+DBTEMPLATES_CACHE_BACKEND = 'dbtemplates.cache.DjangoCacheBackend'
 
 # -------------------------------------------------------------------- #
 #                           HERE BE DRAGONS!                           #
