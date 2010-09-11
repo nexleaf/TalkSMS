@@ -1,5 +1,5 @@
 
-9/9/2010: 
+9/11/2010: 
 
 in order to branch, i've copied faisal's branch to /cens. 
 we'll get it working with rapidsms-dev, add our nexleaf/cens work.
@@ -8,13 +8,8 @@ but, using our talksms lib and rapidsms-dev.
 
 install:
 * install Django 1.2.1
-* install rapidsms-core-dev:  http://github.com/rapidsms/rapidsms-core-dev
 * install django-reversion, django-dbtemplates
-* %rapidsms-admin.py startproject cens
-* %cd cens
-* %rapidsms-admin.py startapp taskmanager
-* %cd ../../
-* %rm -rf cens
+* install rapidsms: http://github.com/rapidsms/rapidsms
 * %git clone git://github.com/SunilMenon/cens .
 
 run:
