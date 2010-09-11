@@ -105,14 +105,17 @@ INSTALLED_APPS = [
 # this rapidsms-specific setting defines which views are linked by the
 # tabbed navigation. when adding an app to INSTALLED_APPS, you may wish
 # to add it here, also, to expose it in the rapidsms ui.
+
 TABS = [
-    ("rapidsms.views.dashboard",                            "Dashboard"),
-    ("rapidsms.contrib.messagelog.views.message_log",       "Message Log"),
-    ("rapidsms.contrib.registration.views.registration",    "Registration"),
-    ("rapidsms.contrib.messaging.views.messaging",          "Messaging"),
-    ("rapidsms.contrib.locations.views.locations",          "Map"),
-    ("rapidsms.contrib.scheduler.views.index",              "Event Scheduler"),
-    ("rapidsms.contrib.httptester.views.generate_identity", "Message Tester"),
+    
+#     ("rapidsms.views.dashboard",                            "Dashboard"),
+#     ("rapidsms.contrib.messagelog.views.message_log",       "Message Log"),
+#     ("rapidsms.contrib.registration.views.registration",    "Registration"),
+#     ("rapidsms.contrib.messaging.views.messaging",          "Messaging"),
+#     ("rapidsms.contrib.locations.views.locations",          "Map"),
+#     ("rapidsms.contrib.scheduler.views.index",              "Event Scheduler"),
+#     ("rapidsms.contrib.httptester.views.generate_identity", "Message Tester"),
+
 ]
 
 
@@ -151,7 +154,7 @@ SITE_ID = 1
 
 # the default log settings are very noisy.
 LOG_LEVEL   = "DEBUG"
-LOG_FILE    = "<change>/taskmanager.log"
+LOG_FILE    = "/home/sunil/cens/taskmanager.log"
 LOG_FORMAT  = "[%(name)s]: %(message)s"
 LOG_SIZE    = 0  # just one log 
 LOG_BACKUPS = 256 # number of logs to keep
