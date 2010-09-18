@@ -5,6 +5,8 @@ import sms
 from datetime import datetime, timedelta
 import json, re
 
+
+
 class AppointmentRequest(object):
     def __init__(self, user, *args):
 
@@ -44,6 +46,8 @@ class AppointmentRequest(object):
     
     def schedule_new_appointment(self, *args, **kwargs):
         ndatetime = kwargs['response']
+        session_id = kwargs['session_id']
+        
 #        assert(re.match(r'\d+/\d+/\d+\s\d+:\d+', ndatetime) is not None)
         print 'in %s.%s: user responsed with date: %s' % (self.__class__, self.__class__.__name__, kwargs['response'])
 
@@ -60,11 +64,11 @@ class AppointmentRequest(object):
         #   schedule the reminder to be sent immediately.
 
         #callback_args = json.JSONEncoder().encode([self.drname, appttime])
-        d = {'task': 'reminder', 'user':self.user.identity, 'args': [self.drname, appttime], 'schedule_date':remindertime}
-        pf = [('sarg', json.dumps(d))]
-
+        d = {'task': 'Appointment Reminder', 'user':self.user.identity, 'args': [self.drname, appttime], 'schedule_date':remindertime, 'session_id':session_id}
+        #pf = [('sarg', json.dumps(d))]
+        
         try:
-            sms.TaskManager.schedule(pf)
+            sms.TaskManager.schedule(d)
         except:
             print 'error: could not schedule a new appointment'
 

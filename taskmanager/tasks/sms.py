@@ -158,9 +158,12 @@ class StateMachine(object):
       # time to resend a message in minutes
       TIMEOUT = 15
       
-      def __init__(self, app, user, interaction, label=''):
+      def __init__(self, app, user, interaction, session_id, label=''):
           self.app = app
           self.log = app
+
+          # support cens gui
+          self.session_id = session_id
           
           self.interaction = interaction
           self.user = user
@@ -235,7 +238,7 @@ class StateMachine(object):
               if hasattr(response, 'callback'):
                   self.log.debug('calling callback defined in %s' % (response))
                   response.args = []
-                  response.kwargs = {'response':rnew}
+                  response.kwargs = {'response':rnew, 'session_id':self.session_id}
                   result = response.callback(*response.args, **response.kwargs)
                   self.log.debug('callback result: %s.' % (result))
               # advance to the next node
@@ -253,6 +256,8 @@ class StateMachine(object):
           """done. tell taskmanager to move me from the live list to the dead list..."""
           self.log.debug('in StateMachine.close(): self.event: %s' % self.event)
           self.done = True
+          # support cens gui
+          self.app.session_close(self.session_id)
           
               
       def kick(self, package=None):
@@ -261,6 +266,10 @@ class StateMachine(object):
           while not self.done:
               self.mbox = package
               self.handler[self.event]()
+
+              # support cens gui
+              self.app.session_updatestate(self.session_id, self.event)
+              
               if self.event == 'WAIT_FOR_RESPONSE':
                   break
 
@@ -287,18 +296,30 @@ class TaskManager(object):
         # maintain a list of all statemachines
         self.uism = []
 
+#    @staticmethod
+#    def schedule(pf):
+        # import pycurl
+        # c = pycurl.Curl()
+        # c.setopt(c.URL, 'http://localhost/schedule')
+        # c.setopt(c.PORT, 8080)
+        # print 'in TaskManager.schedule(): about to post'
+        # c.setopt(c.HTTPPOST, pf)
+        # print 'in TaskManager.schedule():'
+        # c.setopt(c.VERBOSE, 0)
+        # c.perform()
+        # c.close()
+
     @staticmethod
-    def schedule(pf):
-        import pycurl
-        c = pycurl.Curl()
-        c.setopt(c.URL, 'http://localhost/schedule')
-        c.setopt(c.PORT, 8080)
-        print 'in TaskManager.schedule(): about to post'
-        c.setopt(c.HTTPPOST, pf)
-        print 'in TaskManager.schedule():'
-        c.setopt(c.VERBOSE, 0)
-        c.perform()
-        c.close()
+    def schedule(d):
+        session = Session.objects.get(pk=d['session_id'])        
+        nt = ScheduledTask(
+            patient = Patient.objects.get(address=d['user']),
+            task = Task.objects.get(name=d['task']),
+            process = session.process,
+            arguments = json.dumps(d['args']),
+            schedule_date = d['schedule_date']
+        )
+        nt.save()
 
 
     def addstatemachines(self, *statemachines):

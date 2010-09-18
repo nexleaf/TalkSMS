@@ -54,6 +54,8 @@ class AppointmentReminder(object):
 
     def reschedule(self, *args, **kwargs):
         ndatetime = kwargs['response']
+        session_id = kwargs['session_id']
+        
         assert(re.match(r'\d+/\d+/\d+.\d+:\d+:\d+', ndatetime) is not None)
         print 'in %s.%s: user responsed with date: %s' % (self.__class__, self.__class__.__name__, kwargs['response'])
 
@@ -70,13 +72,12 @@ class AppointmentReminder(object):
         # if remindertime is earlier than now,
         #   schedule the reminder to be sent immediately.
 
-        callback = 'tasks.appointment_reminder.AppointmentReminder'
-
-        d = {'task': 'reminder', 'user':self.user.identity, 'args':[self.drname, appttime], 'schedule_date':remindertime}
-        pf = [( 'sarg', json.dumps(d) )]
+        
+        d = {'task': 'Appointment Reminder', 'user':self.user.identity, 'args':[self.drname, appttime], 'schedule_date':remindertime, 'session_id': session_id}
+        #pf = [( 'sarg', json.dumps(d) )]
 
         try:
-            sms.TaskManager.schedule(pf)
+            sms.TaskManager.schedule(d)
         except:
             print 'error: could not schedule '
 

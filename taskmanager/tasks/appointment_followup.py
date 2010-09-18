@@ -41,6 +41,7 @@ class AppointmentFollowup(object):
     
     def schedule_new_appointment(self, *args, **kwargs):
         ndatetime = kwargs['response']
+        session_id = kwargs['session_id']
         assert(re.match(r'\d+/\d+/\d+\s\d+:\d+', ndatetime) is not None)
         print 'in tasks.appointment_tree.schedule_appointment: user responsed with date: %' % (response)
 
@@ -48,18 +49,16 @@ class AppointmentFollowup(object):
         t = datetime.strptime(ndatetime, "%m/%d/%Y %H:%M")
         s = timedelta(days=3, microseconds=1)
 
+        appttime = t.isoformat()
         remindertime = (t-s).isoformat()
         # scheduler does this:
         # if remindertime is earlier than now,
         #   schedule the reminder to be sent immediately.
 
-        callback = 'tasks.appointment_reminder.AppointmentReminder'
-
-        d = {'task':callback, 'user':self.user.identity, 'args':self.drname, 'schedule_date':remindertime}
-        pf = [( 'sarg', json.dumps(d) )]
+        d = {'task':'Appointment Reminder', 'user':self.user.identity, 'args':[self.drname, appttime],  'schedule_date':remindertime, 'session_id':session_id}
 
         try:
-            sms.TaskManager.schedule(pf)
+            sms.TaskManager.schedule(d)
         except:
             print 'error: could not schedule a new appointment'
 
