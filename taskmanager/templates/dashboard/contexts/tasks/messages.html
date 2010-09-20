@@ -53,19 +53,11 @@ $(document).ready(function() {
 		<div class="col_header">
 		Messages
 		</div>
-
-<<<<<<< Updated upstream:templates/dashboard/contexts/tasks/messages.html
 		<div class="template_holder" style="padding: 10px; padding-top: 0px;">
 			{% if templates %}
-			<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_messages %}">
+			<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_messages %}">{% csrf_token %}
 				{% for template in templates %}
 				<div class="template_entry" style="padding: 5px;">
-=======
-		<div style="padding: 10px;">
-			{% for template in templates %}
-			<div class="template_entry" style="padding: 5px;">
-				<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_message %}">{% csrf_token %}
->>>>>>> Stashed changes:templates/dashboard/contexts/tasks/messages.html
 					<div class="template_header thing">{{ template.name }}</div>
 
 					<div class="arguments thing">

@@ -75,19 +75,11 @@ $(document).ready(function() {
 		<div class="col_header">
 		Templates
 		</div>
-
-<<<<<<< Updated upstream:templates/dashboard/contexts/tasks/templates.html
 		<div class="template_holder">
 			{% if tasktemplates %}
-			<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_templates %}">
+			<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_templates %}">{% csrf_token %}
 				{% for template in tasktemplates %}
 				<div class="template_entry">
-=======
-		<div style="padding: 10px;">
-			{% for template in tasktemplates %}
-			<div class="template_entry" style="padding: 5px;">
-				<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_template %}">{% csrf_token %}
->>>>>>> Stashed changes:templates/dashboard/contexts/tasks/templates.html
 					<div class="template_header thing">{{ template.name }}</div>
 
 					<div class="arguments thing">
@@ -118,7 +110,7 @@ $(document).ready(function() {
 
 		{% if selected_tasktemplateid %}
 		<div class="template_holder" style="padding: 10px;">
-			<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_templates %}">
+			<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_templates %}">{% csrf_token %}
 				<div class="template_entry" style="padding-right: 10px;">
 					<div class="template_header thing">{{ tasktemplate.name }}</div>
 
@@ -141,11 +133,11 @@ $(document).ready(function() {
 	</tr>
 </table>
 {% endblock %}
-<<<<<<< Updated upstream:templates/dashboard/contexts/tasks/templates.html
+
 
 {% block section_divs %}
 <div id="templates_add_dialog" class="column_dialog">
-	<form id="tasktemplate_form" action="{% url taskmanager.subviews.contexts.tasks.add_tasktemplate %}" method="POST">
+	<form id="tasktemplate_form" action="{% url taskmanager.subviews.contexts.tasks.add_tasktemplate %}" method="POST">{% csrf_token %}
 		<div style="font-weight: bold; font-family: Verdana, sans-serif; font-size: 22px; margin-bottom: 0.5em;">
 		Add a Template
 		</div>
@@ -169,5 +161,5 @@ $(document).ready(function() {
 	</form>
 </div>
 {% endblock %}
-=======
->>>>>>> Stashed changes:templates/dashboard/contexts/tasks/templates.html
+
+
