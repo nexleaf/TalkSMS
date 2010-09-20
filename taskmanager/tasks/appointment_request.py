@@ -8,10 +8,10 @@ import json, re
 
 
 class AppointmentRequest(object):
-    def __init__(self, user, *args):
+    def __init__(self, user, args):
 
         if args:
-            self.drname = args[0]
+            self.drname = args['appt_type']
         else:
             self.drname = 'your doctor'
 

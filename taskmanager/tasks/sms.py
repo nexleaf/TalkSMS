@@ -311,7 +311,9 @@ class TaskManager(object):
 
     @staticmethod
     def schedule(d):
-        session = Session.objects.get(pk=d['session_id'])        
+        self.log.debug('in Taskmanager.schedule():')
+        session = Session.objects.get(pk=d['session_id'])
+        self.log.debug('session: %s', session)
         nt = ScheduledTask(
             patient = Patient.objects.get(address=d['user']),
             task = Task.objects.get(name=d['task']),
@@ -319,6 +321,7 @@ class TaskManager(object):
             arguments = json.dumps(d['args']),
             schedule_date = d['schedule_date']
         )
+        self.log.debug('nt: %s', nt)
         nt.save()
 
 

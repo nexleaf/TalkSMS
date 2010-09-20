@@ -148,7 +148,7 @@ def check_schedule():
             'POST',
             TARGET_SERVER,
             Headers({
-                    "Content-Type": ["application/x-www-form-urlencoded"],
+                    "Content-Type": ["application/x-www-form-urlencoded;charset=utf-8"],
                     "Content-Length": [str(len(payload))]
                     }),
             StringProducer(payload))
