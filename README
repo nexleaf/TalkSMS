@@ -1,4 +1,3 @@
-
 9/11/2010: 
 
 in order to branch, i've copied faisal's branch to /cens. 
@@ -12,9 +11,16 @@ install:
 * install rapidsms: http://github.com/rapidsms/rapidsms
 * %git clone git://github.com/SunilMenon/cens .
 
+modify dbtemplaes:
+The dbtemplates module overrides a global django setting CACHE_BACKEND.
+The django-appsettings module does not like this and will not let anything run.
+In /usr/local/lib/python2.6/dist-packages/django_dbtemplates-*yourversion*.egg/dbtemplates
+edit settings.py and moduiles.py and change all instances of CACHE_BACKEND to CACHE_BACKEND_NEW
+
 run:
 * %cd cens
 * %./manage.py syncdb
+* %./manage.py sync_templates # push 'y' for everything
 * %./manage.py scheduler
 * %./manage.py runrouter
 * %./manage.py runserver
