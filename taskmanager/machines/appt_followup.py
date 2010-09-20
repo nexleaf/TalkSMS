@@ -68,9 +68,15 @@ class AppointmentFollowupMachine(appt_machine.BaseAppointmentMachine):
 
         if (result[1] == 0):
             # assume this is a comment, thank them, and exit
+            their_message = message.text
             message.text = "Thank you for your response!"
             message.respond(message.text)
             self.log_message(message.text, outgoing=True)
+            alert_data = {'feedback': their_message}
+            if self.patient and self.session:
+                alert_data['url'] = '/taskmanager/patients/%d/history/#session_%d' % (self.patient.id, self.session.id)
+            alert_data.update(self.args)
+            Alert.objects.add_alert("Appointment Feedback", arguments=alert_data, patient=self.patient)
             return None
         else:
             # the date they chose is in result[0]

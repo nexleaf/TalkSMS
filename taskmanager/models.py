@@ -10,19 +10,11 @@ import dbtemplates.models
 
 from datetime import datetime
 from pytz import timezone
-import os
+import os, json
 
 # =================================================================
 # ==== Users
 # =================================================================
-
-class Patient(models.Model):
-    address = models.CharField(max_length=200)
-    first_name = models.CharField(max_length=80)
-    last_name = models.CharField(max_length=80)
-
-    def __unicode__(self):
-        return "%s, %s (%s)" % (self.last_name, self.first_name, self.address)
 
 class Clinician(models.Model):
     # links the Clinician object to a User object for authentication purposes
@@ -41,6 +33,73 @@ def user_save_handler(sender, **kwargs):
 
 post_save.connect(user_save_handler, sender=User)
 
+class Patient(models.Model):
+    address = models.CharField(max_length=200)
+    first_name = models.CharField(max_length=80)
+    last_name = models.CharField(max_length=80)
+    clinicians = models.ManyToManyField(Clinician)
+
+    def __unicode__(self):
+        return "%s, %s (%s)" % (self.last_name, self.first_name, self.address)
+
+# =================================================================
+# ==== Services and Alerts
+# =================================================================
+
+class Service(models.Model):
+    name = models.CharField(max_length=100, unique=True, db_index=True)
+    last_status = models.CharField(max_length=100, blank=True, null=True)
+    last_status_date = models.DateTimeField(blank=True, null=True)
+
+    def __unicode__(self):
+        return self.name
+
+class AlertType(models.Model):
+    STATUSES =(
+            (u'error', u'error'),
+            (u'info', u'info'),
+            (u'exception', u'exception'),
+            (u'generic', u'generic')
+        )
+    
+    name = models.CharField(max_length=100, unique=True, db_index=True)
+    service = models.ForeignKey(Service)
+    title_template = models.CharField(max_length=500)
+    message_template = models.TextField()
+    status = models.CharField(max_length=100, choices=STATUSES)
+    
+    def __unicode__(self):
+        return self.name
+
+class AlertManager(models.Manager):
+    def add_alert(self, alert_type, title="", message="", arguments={}, patient=None):
+        na = Alert(
+            alert_type = AlertType.objects.get(name=alert_type),
+            title = title,
+            message = message,
+            arguments = json.dumps(arguments),
+            patient = patient
+            )
+        na.save()
+    
+class Alert(models.Model):
+    alert_type = models.ForeignKey(AlertType)
+    patient = models.ForeignKey(Patient, blank=True, null=True)
+    title = models.CharField(max_length=100)
+    message = models.TextField()
+    arguments = models.TextField()
+    add_date = models.DateTimeField(auto_now_add=True)
+
+    objects = AlertManager()
+
+    class Meta:
+        ordering = ['-add_date']
+
+    def __unicode__(self):
+        if self.patient:
+            return "%s for %s" % (self.alert_type, self.patient)    
+        else:
+            return self.alert_type
 
 # =================================================================
 # ==== Task Descriptions
@@ -67,7 +126,7 @@ class TaskTemplate(models.Model):
         return "%s" % (self.name)
 
 # =================================================================
-# ==== Processes (Scheduled Task + Session Group)
+# ==== Processes (Scheduled Task + Session aggregation)
 # =================================================================
 
 class ProcessManager(models.Manager):
@@ -121,6 +180,9 @@ class Process(models.Model):
         elif (current_cnt) > 0 or (pending_cnt > 0 and completed_cnt > 0): return "running"
         elif pending_cnt <= 0 and current_cnt <= 0 and completed_cnt > 0: return "past"
         else: return "unknown"
+
+    class Meta:
+        verbose_name_plural = "processes"
 
     def __unicode__(self):
         return "%s (#%d)" % (self.name, self.id)
@@ -186,7 +248,7 @@ class TaskPatientDatapoint(models.Model):
         return "Datapoint for %s on %s" % (self.patient.address, self.task.name)
 
 # =================================================================
-# ==== Scheduled tasks
+# ==== Scheduled Tasks
 # =================================================================
 
 class ScheduledTaskManager(models.Manager):

@@ -4,7 +4,7 @@
 $(document).ready(function() {
 	// find each textbox and highlight the save button when it's changed
 	$(".content textarea").change(function() {
-		var $saveframe = $(this).closest(".template_entry").find(".commands");
+		var $saveframe = $(this).closest(".template_holder").find(".commands");
 		$saveframe.find(".remember_save").fadeIn();
 
 		// disable the other save buttons on the form to prevent disaster?
@@ -36,12 +36,11 @@ $(document).ready(function() {
 	padding: 10px; padding-left: 35px;
 }
 
-.template_entry .commands {
-	float: right; width: 300px; z-index: 8;
-	text-align: right; padding: 10px; padding-top: 0px;
+.template_holder .commands {
+	text-align: right; padding: 0px; padding-bottom: 20px;
 }
 
-.template_entry .commands .remember_save {
+.template_holder .commands .remember_save {
 	color: #5ac; font-weight: bold;
 }
 {% endblock %}
@@ -55,30 +54,36 @@ $(document).ready(function() {
 		Messages
 		</div>
 
+<<<<<<< Updated upstream:templates/dashboard/contexts/tasks/messages.html
+		<div class="template_holder" style="padding: 10px; padding-top: 0px;">
+			{% if templates %}
+			<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_messages %}">
+				{% for template in templates %}
+				<div class="template_entry" style="padding: 5px;">
+=======
 		<div style="padding: 10px;">
 			{% for template in templates %}
 			<div class="template_entry" style="padding: 5px;">
 				<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_message %}">{% csrf_token %}
+>>>>>>> Stashed changes:templates/dashboard/contexts/tasks/messages.html
 					<div class="template_header thing">{{ template.name }}</div>
 
-					<div class="content thing">
-						<textarea name="content" style="width: 100%;" rows="6">{{ template.content }}</textarea>
+					<div class="arguments thing">
+						<textarea name="content__{{ template.id }}" style="width: 100%;" rows="6">{{ template.content }}</textarea>
 					</div>
+				</div>
+				{% endfor %}
 
-					<div class="commands thing">
-						<span class="remember_save" style="display: none;">remember to save</span>
+				<div class="commands thing">
+					<span class="remember_save" style="display: none;">remember to save</span>
 
-						<input type="hidden" name="return_page" value="{{ current_page }}" />
-						<input type="hidden" name="templateid" value="{{ template.id }}" />
-						<input type="submit" style="width: 100px;" value="save" />
-					</div>
-				</form>
-			</div>
-			{% empty %}
-			This task has no editable messages.
-			{% endfor %}
-
-			<div style="clear: both;"></div>
+					<input type="hidden" name="return_page" value="{{ current_page }}" />
+					<input type="submit" style="width: 150px;" value="save changes" />
+				</div>
+			</form>
+			{% else %}
+			This task has no associated messages.
+			{% endif %}
 		</div>
 	</td>
 

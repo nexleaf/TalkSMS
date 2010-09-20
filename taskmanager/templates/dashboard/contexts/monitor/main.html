@@ -14,15 +14,15 @@
 
 <!-- tab chooser goes in here somewhere -->
 {% block tabs %}
-	{% if selected_itemid %}
+	{% if selected_serviceid %}
 	<ul class="tabber" id="tabnav">
-		<li class="tab1"><a href="/taskmanager/monitor/{{ selected_itemid }}/status/"><img src="/static/taskmanager/fugue/icons/switch.png" border="0" class="iconified_tab" />Status</a></li>
-		<li class="tab2"><a href="/taskmanager/monitor/{{ selected_itemid }}/alerts/"><img src="/static/taskmanager/fugue/icons/exclamation-button.png" border="0" class="iconified_tab" />Alerts</a></li>
+		<li class="tab2"><a href="/taskmanager/services/{{ selected_serviceid }}/alerts/"><img src="/static/taskmanager/fugue/icons/exclamation-button.png" border="0" class="iconified_tab" />Alerts</a></li>
+		<li class="tab1"><a href="/taskmanager/services/{{ selected_serviceid }}/status/"><img src="/static/taskmanager/fugue/icons/switch.png" border="0" class="iconified_tab" />Status</a></li>
 	</ul>
 	{% else %}
 	<ul class="tabber" id="tabnav">
-		<li class="tab1"><a href="javascript:void(0)"><img src="/static/taskmanager/fugue/icons/switch.png" border="0" class="iconified_tab" />Status</a></li>
 		<li class="tab2"><a href="javascript:void(0)"><img src="/static/taskmanager/fugue/icons/exclamation-button.png" border="0" class="iconified_tab" />Alerts</a></li>
+		<li class="tab1"><a href="javascript:void(0)"><img src="/static/taskmanager/fugue/icons/switch.png" border="0" class="iconified_tab" />Status</a></li>
 	</ul>
 	{% endif %}
 {% endblock %}
@@ -35,10 +35,15 @@
 		</div>
 
 		<div class="itemlist chooser" style="min-height: 300px;">
-			{% for task in tasks %}
-			<a class="{% if task.id|lower == selected_itemid|lower %}selected{% endif %} choosable" href="/taskmanager/monitor/{{ task.id }}/{{ section|default:'templates' }}">
-				{{ task.name }}
-				<div class="address_box">from: {{ task.module }}</div>
+			{% for service in services %}
+			<a class="{% if service.id|lower == selected_serviceid|lower %}selected{% endif %} choosable" href="/taskmanager/services/{{ service.id }}/{{ section|default:'alerts' }}">
+				{{ service.name }}
+
+				{% if service.last_status %}
+				<div class="address_box">status: {{ service.last_status }} ({{ server.last_status_date|timesince }} ago)</div>
+				{% else %}
+				<div class="address_box">status: n/a</div>
+				{% endif %}
 			</a>
 			{% endfor %}
 		</div>
@@ -47,7 +52,7 @@
 
 <!-- content area goes in here, too -->
 {% block context_content %}
-	{% if selected_itemid %}
+	{% if selected_serviceid %}
 		<div id="section_holder">
 			{% block section_content %}{% endblock %}
 		</div>

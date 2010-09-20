@@ -2,9 +2,13 @@
 
 <html>
 	<head>
-		<title>Task Manager :: {% block title %}{% endblock %}</title>
+		<title>Task Manager :: {{ context|capfirst }}</title>
 
+		{% if context == "asdf" %}
+		<link rel="shortcut icon" href="/static/taskmanager/context-icons/{{ context }}_favicon.ico" type="image/x-icon" />
+		{% else %}
 		<link rel="shortcut icon" href="/static/taskmanager/favicon.ico" type="image/x-icon" />
+		{% endif %}
 
 		<script type="text/javascript" src="/static/taskmanager/jquery-1.4.2.min.js"></script>
 		<script type="text/javascript" src="/static/taskmanager/jquery-ui-1.8.4.custom.min.js"></script>
@@ -25,6 +29,23 @@
 		{% block includes %}{% endblock %}
 
 		<style>
+		body {
+			/* sad, but necessary to keep the floating header bits from making a mess when the window is too narrow  */
+			min-width: 764px;
+		}
+
+		/* generic style for perfectly rounded objects */
+		.rounded_corners {
+			-moz-border-radius: 5px;
+			-webkit-border-radius: 5px;
+			border-radius: 5px;
+		}
+
+		/* div surrounding the context switcher button */
+		#context_switcher_btn_frame {
+			float: left; padding: 0px; text-align: center; border: solid 1px #ddd; margin: 5px;
+		}
+
 		/* context switcher dialog button */
 		#context_switcher_btn {
 			width: 32px; height: 33px; display: block;
@@ -45,6 +66,11 @@
 			padding: 7px 9px;
 			margin-bottom: 3px;
 			z-index: 10;
+
+			/* partially remove corner rounding to properly line up with menu */
+			-moz-border-radius: 5px 5px 0px 0px;
+			-webkit-border-radius: 5px 5px 0px 0px;
+			border-radius: 5px 5px 0px 0px;
 		}
 
 		#context_switcher_dialog {
@@ -154,9 +180,9 @@
 	</head>
 
 	<body {% if section %}id="{{ section }}"{% endif %}>
-		<div id="context_switcher" style="position: relative; margin: 0px; margin-bottom: 1em; height: 100%; overflow: hidden;">
-			<div style="float: left; padding: 0px; text-align: center; border: solid 1px #ddd; margin: 5px;">
-				<a alt="Switch Context" id="context_switcher_btn" href="#" class="free_command {{ context }}_context">
+		<div id="context_switcher" style="padding-left: 7px; padding-top: 7px; position: relative; margin: 0px; margin-bottom: 1em; height: 100%; overflow: hidden;">
+			<div id="context_switcher_btn_frame" class="rounded_corners">
+				<a alt="Switch Context" id="context_switcher_btn" href="#" class="rounded_corners free_command {{ context }}_context">
 				</a>
 			</div>
 
@@ -184,7 +210,7 @@
 			</a>
 			<a class="monitor_context {% if context == 'monitor' %}viewing{% endif %}" href="/taskmanager/monitor/">
 				System Monitor
-				<div class="subby">alerts, statistics (?)</div>
+				<div class="subby">alerts, status</div>
 			</a>
 		</div>
 	</body>

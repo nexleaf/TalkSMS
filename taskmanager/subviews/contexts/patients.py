@@ -95,6 +95,11 @@ def history(request, patientid):
                 field_vars['processes'] = Process.objects.filter(patient__id=patientid,add_date__gte=from_datetime)
     else:
         field_vars['processes'] = Process.objects.filter(patient__id=patientid)
+
+    # order by add date descending after we have a list
+    # django lazy query evaluation means that nothing is actually happening here
+    # the ordering will occur when the page iterates over 'processes'
+    field_vars['processes'] = field_vars['processes'].order_by('-add_date')
     
     merge_contextuals(field_vars, request, patientid)
     return render_to_response('dashboard/contexts/patients/history.html', field_vars, context_instance=RequestContext(request))
@@ -139,6 +144,8 @@ def add_patient(request):
             first_name = request.POST['first_name'],
             last_name = request.POST['last_name']
             )
+        # add at least the creator to the list of clinicians for this patient
+        np.clinicians.add(request.user.get_profile())
         np.save()
 
         # return HttpResponseRedirect(reverse('taskmanager.views.scheduler'))

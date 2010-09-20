@@ -1,76 +1,173 @@
 {% extends "dashboard/contexts/tasks/main.html" %}
 
+{% block section_scripts %}
+$(document).ready(function() {
+	// find each textbox and highlight the save button when it's changed
+	$(".arguments textarea").change(function() {
+		var $saveframe = $(this).closest(".template_holder").find(".commands");
+		$saveframe.find(".remember_save").fadeIn();
+
+		// disable the other save buttons on the form to prevent disaster?
+
+		// and make this sucka never fire again
+		$(this).unbind('change');
+	});
+
+	// bind up schedule form adder dialogs
+	$("#schedule_show_add_btn").click(function() {
+		var $dialog = $("#templates_add_dialog");
+		var $header = $("#templates_column .col_header");
+
+		toggleDialog($(this), $dialog, $header);
+	});
+});
+{% endblock %}
+
 {% block section_styles %}
 .template_entry {
 	padding: 5px;
 }
 
-.template_entry .thing {
-	background-color: white;
-}
-
 .template_entry .template_header {
-	background-image: url('/static/taskmanager/fugue/bonus/icons-24/script-export.png');
-	background-repeat: no-repeat; background-position: 5px center;
-	-moz-border-radius: 5px 5px 0px 0px;
-	-webkit-border-radius: 5px 5px 0px 0px;
-
-	width: 300px;
-	padding: 10px; padding-left: 35px; font-weight: bold; font-size: 20px;
+	margin-bottom: 10px; font-weight: bold; font-size: 20px;
 }
 
 .template_entry .arguments {
-	-moz-border-radius: 0px 5px 0px 5px;
-	-webkit-border-radius: 0px 5px 0px 5px;
-
-	padding: 10px; padding-left: 35px;
 }
 
-.template_entry .commands {
-	-moz-border-radius: 0px 0px 5px 5px;
-	-webkit-border-radius: 0px 0px 5px 5px;
-
-	float: right; width: 100px; z-index: 8;
-	text-align: right; padding: 10px; padding-top: 0px;
+.template_holder .commands {
+	text-align: right; padding: 10px; padding-right: 15px;
 }
+
+/* notifier message to remember to save your changes */
+.template_holder .commands .remember_save {
+	color: #5ac; font-weight: bold;
+}
+
+/* indicates that there's no valid value for this pane yet */
+.nodata { background: url('/static/taskmanager/images/diagonal-gray.png'); }
 {% endblock %}
 
 {% block section_content %}
 <table cellpadding="0" cellspacing="0" class="templates_view_table" style="min-height: 300px; width: 100%; height: 100%; border: solid 1px gray;">
 	<tr>
 
-	<td id="templates_column" valign="top" class="column" style="border-right: solid 1px #999;">
+	<td id="templates_column" width="33%" style="width: 25%; border-right: solid 1px #999;" valign="top" class="column">
+		<div class="col_header" style="position: relative;">
+			Templates
+
+			<a id="schedule_show_add_btn" class="header_command" href="#" alt="Schedule a Task">
+				<img src="/static/taskmanager/icons/Add%20Green%20Button.png" border="0" />
+			</a>
+		</div>
+
+		<div class="itemlist chooser" style="min-height: 300px;">
+			{% for template in tasktemplates %}
+			<a class="{% if template.id|lower == selected_tasktemplateid|lower %}selected{% endif %} choosable" href="/taskmanager/tasks/{{ selected_taskid }}/templates/{{ template.id }}/">
+				{{ template.name }}
+			</a>
+			{% endfor %}
+		</div>
+	</td>
+
+	<!--
+	<td id="templates_column" valign="top" class="column">
 		<div class="col_header">
 		Templates
 		</div>
 
+<<<<<<< Updated upstream:templates/dashboard/contexts/tasks/templates.html
+		<div class="template_holder">
+			{% if tasktemplates %}
+			<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_templates %}">
+				{% for template in tasktemplates %}
+				<div class="template_entry">
+=======
 		<div style="padding: 10px;">
 			{% for template in tasktemplates %}
 			<div class="template_entry" style="padding: 5px;">
 				<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_template %}">{% csrf_token %}
+>>>>>>> Stashed changes:templates/dashboard/contexts/tasks/templates.html
 					<div class="template_header thing">{{ template.name }}</div>
 
 					<div class="arguments thing">
-						<textarea name="arguments" style="width: 100%;">{{ template.arguments }}</textarea>
+						<textarea name="arguments__{{ template.id }}" style="width: 100%;">{{ template.arguments }}</textarea>
 					</div>
+				</div>
+				{% endfor %}
 
-					<div class="topright_corner"></div>
+				<div class="commands thing">
+					<span class="remember_save" style="display: none;">remember to save</span>
 
-					<div class="commands thing">
-						<input type="hidden" name="return_page" value="{{ current_page }}" />
-						<input type="hidden" name="tasktemplateid" value="{{ template.id }}" />
-						<input type="submit" style="width: 100px;" value="save" />
-					</div>
-				</form>
-			</div>
-			{% empty %}
+					<input type="hidden" name="return_page" value="{{ current_page }}" />
+					<input type="submit" style="width: 150px;" value="save changes" />
+				</div>
+			</form>
+			{% else %}
 			This task has no templates and is thus not directly schedulable.
-			{% endfor %}
-
-			<div style="clear: both;"></div>
+			{% endif %}
 		</div>
+	</td>
+	-->
+
+
+	<td id="selected_template_column" valign="top" class="column {% if not selected_tasktemplateid %}nodata{% endif %}">
+		<div class="col_header">
+		Arguments
+		</div>
+
+		{% if selected_tasktemplateid %}
+		<div class="template_holder" style="padding: 10px;">
+			<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_templates %}">
+				<div class="template_entry" style="padding-right: 10px;">
+					<div class="template_header thing">{{ tasktemplate.name }}</div>
+
+					<div class="arguments thing">
+						<textarea name="arguments__{{ tasktemplate.id }}" style="width: 100%;">{{ tasktemplate.arguments }}</textarea>
+					</div>
+				</div>
+
+				<div class="commands thing">
+					<span class="remember_save" style="display: none;">remember to save</span>
+
+					<input type="hidden" name="return_page" value="{{ current_page }}" />
+					<input type="submit" style="width: 150px;" value="save changes" />
+				</div>
+			</form>
+		</div>
+		{% endif %}
 	</td>
 
 	</tr>
 </table>
 {% endblock %}
+<<<<<<< Updated upstream:templates/dashboard/contexts/tasks/templates.html
+
+{% block section_divs %}
+<div id="templates_add_dialog" class="column_dialog">
+	<form id="tasktemplate_form" action="{% url taskmanager.subviews.contexts.tasks.add_tasktemplate %}" method="POST">
+		<div style="font-weight: bold; font-family: Verdana, sans-serif; font-size: 22px; margin-bottom: 0.5em;">
+		Add a Template
+		</div>
+
+		<input type="hidden" name="return_page" value="{{ current_page }}" />
+		<input type="hidden" name="selected_taskid" value="{{ selected_taskid }}" />
+
+		{% if error_msg %}
+		<div class="errorbox">
+			<b>error:</b> {{ error_msg }}
+		</div>
+		{% endif %}
+
+		<table class="vertical" style="width: 100%;">
+			<tr><td class="label" style="width: 100px;">Name:</td><td>
+				<input type="text" name="templatename" />
+			</td></tr>
+
+			<tr><td class="label">&nbsp;</td><td align="right"><input type="submit" name="schedule" value="Add Template"></td></tr>
+		</table>
+	</form>
+</div>
+{% endblock %}
+=======
+>>>>>>> Stashed changes:templates/dashboard/contexts/tasks/templates.html

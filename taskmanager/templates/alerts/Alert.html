@@ -1,0 +1,16 @@
+<div class="alert_entry alert_{{ alert.alert_type.status }}">
+	<div class="alert_tab">&nbsp;</div>
+
+	<div class="alert_body">
+		<div class="alert_title">{{ title }} <span class="alert_date">({{ alert.add_date|timesince }} ago)</span></div>
+		{% if message %}
+		<div class="alert_message">{{ message }}</div>
+		{% endif %}
+	</div>
+
+	{% if args.url %}
+	<div class="alert_url">
+		<a class="alert_link" title="view in history" href="{{ args.url }}"></a>
+	</div>
+	{% endif %}
+</div>

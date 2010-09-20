@@ -36,17 +36,24 @@ urlpatterns = patterns('',
     # ================================
     (r'^taskmanager/tasks/?$', contexts_tasks.default),
     (r'^taskmanager/tasks/(?P<taskid>\d+)/templates/?$', contexts_tasks.templates),
+    (r'^taskmanager/tasks/(?P<taskid>\d+)/templates/(?P<tasktemplateid>\d+)/?$', contexts_tasks.templates),
     (r'^taskmanager/tasks/(?P<taskid>\d+)/messages/?$', contexts_tasks.messages),
                        
     # tasks context: POST targets
-   (r'^taskmanager/tasks/templates/update/?$', contexts_tasks.update_template),
-   (r'^taskmanager/tasks/messages/update/?$', contexts_tasks.update_message),
+    (r'^taskmanager/tasks/templates/add/?$', contexts_tasks.add_tasktemplate),
+    (r'^taskmanager/tasks/templates/update/?$', contexts_tasks.update_templates),
+    (r'^taskmanager/tasks/messages/update/?$', contexts_tasks.update_messages),
 
     # ================================
     # monitor context
     # ================================
     (r'^taskmanager/monitor/?$', contexts_monitor.default),
+    (r'^taskmanager/services/(?P<serviceid>\d+)/status/?$', contexts_monitor.status),
+    (r'^taskmanager/services/(?P<serviceid>\d+)/alerts/?$', contexts_monitor.alerts),
 
+    # monitor context: POST targets
+    (r'^taskmanager/monitor/alerts/mark_reviewed', contexts_monitor.mark_alerts_reviewed),
+                       
     # ================================
     # details views
     # ================================

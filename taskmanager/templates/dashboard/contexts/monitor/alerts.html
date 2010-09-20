@@ -1,0 +1,136 @@
+{% extends "dashboard/contexts/monitor/main.html" %}
+{% load alerts %}
+
+{% block section_styles %}
+/*
+.alert_error { background-color: #F2DCDC; }
+.alert_info { background-color: #E2F3DF; }
+.alert_exception { background-color: #F2F2C6; }
+.alert_generic { background-color: #B5C9E3; }
+*/
+
+.alert_exception_bg { background-color: #E3E383; }
+.alert_exception_light_bg { background-color: #F2F2C6; }
+.alert_error_bg { background-color: #E3B5B5; }
+.alert_error_light_bg { background-color: #F2DCDC; }
+.alert_generic_bg { background-color: #B5C9E3; }
+.alert_generic_light_bg { background-color: #D3DFEF; }
+.alert_info_bg { background-color: #BBE3B5; }
+.alert_info_light_bg { background-color: #E2F3DF; }
+.alert_unknown_bg { background-color: #ccc; }
+.alert_unknown_light_bg { background-color: #eee; }
+
+.alert_tab {
+	background-image: url('/static/taskmanager/fugue/bonus/icons-24/exclamation.png');
+	background-repeat: no-repeat;
+	background-position: center center;
+	width: 45px;
+	left: 0px; top: 0px; bottom: 0px;
+	position: absolute;
+
+	-moz-border-radius: 5px 0px 0px 5px;
+	-webkit-border-radius: 5px 0px 0px 5px;
+	border-radius: 5px 0px 0px 5px;
+}
+.alert_body { }
+.alert_url {
+	background-image: url('/static/taskmanager/fugue/bonus/icons-24/chain.png');
+	background-repeat: no-repeat;
+	background-position: center center;
+	width: 45px;
+	right: 0px; top: 0px; bottom: 0px;
+	position: absolute;
+
+	background-color: #ddd;
+
+	-moz-border-radius: 0px 5px 5px 0px;
+	-webkit-border-radius: 0px 5px 5px 0px;
+	border-radius: 0px 5px 5px 0px;
+}
+.alert_url a {
+	width: 45px;
+	right: 0px; top: 0px; bottom: 0px;
+	position: absolute;
+}
+.alert_url:hover {
+	cursor: pointer;
+	background-color: #D3D3D3;
+}
+
+.alert_exception .alert_tab  { background-color: #E3E383; }
+.alert_error .alert_tab { background-color: #E3B5B5; }
+.alert_generic .alert_tab { background-color: #B5C9E3; }
+.alert_info .alert_tab { background-color: #BBE3B5;  }
+
+.alert_entry {
+	-moz-border-radius: 5px;
+	-webkit-border-radius: 5px;
+	border-radius: 5px;
+
+	position: relative;
+
+	background-color: #eee;
+
+	padding: 10px;
+	padding-left: 55px;
+
+	margin-bottom: 0.5em;
+	margin-right: 10px;
+}
+.alert_title { margin-bottom: 5px; font-weight: bold; }
+.alert_date { font-weight: normal; }
+.alert_message { }
+{% endblock %}
+
+{% block section_content %}
+<table cellpadding="0" cellspacing="0" class="alerts_view_table" style="min-height: 300px; width: 100%; height: 100%; border: solid 1px gray;">
+	<tr>
+
+	<td id="alerts_column" valign="top" class="column" style="border-right: solid 1px #999;">
+		<div class="col_header">
+		Alerts
+		</div>
+
+		<div style="padding: 10px; position: relative;">
+			<div style="font-weight: bold; font-size: 18px; margin-bottom: 1em;">
+			Alerts for {{ service.name }}
+			</div>
+
+			<div style="position: absolute; top: 10px; right: 10px; color: #555;">
+				<b>color key:</b>
+				<span class="task_status alert_error_bg" style="display: inline-block; width: 60px;">error</span>
+				<span class="task_status alert_info_bg" style="display: inline-block; width: 60px;">info</span>
+				<span class="task_status alert_exception_bg" style="display: inline-block; width: 60px;">exception</span>
+				<span class="task_status alert_generic_bg" style="display: inline-block; width: 60px;">generic</span>
+			</div>
+
+			{% include "dashboard/bits/alert_filter.html" %}
+
+			<div style="position: relative; border-top: solid 1px #ccc; padding-top: 5px; overflow: hidden;">
+				<div style="float: left; width: 80%;">
+				{% for alert in alerts %}
+					{{ alert|display_alert }}
+				{% empty %}
+					<div style="padding-left: 10px; color: #555;">
+					There are no alerts for the selected timeframe.
+					</div>
+				{% endfor %}
+				</div>
+
+				<div style="float: left; width: 20%;">
+					<form method="POST" action="{% url taskmanager.subviews.contexts.monitor.mark_alerts_reviewed %}">
+						<input type="hidden" name="return_page" value="{{ current_page }}" />
+						<input type="hidden" name="serviceid" value="{{ selected_serviceid }}" />
+						<input type="submit" value="Mark All Reviewed" style="width: 100%;" />
+						{% if alerts_reviewed_on %}
+						<div style="color: #555; padding: 3px;">last marked {{ alerts_reviewed_on|timesince }} ago</div>
+						{% endif %}
+					</form>
+				</div>
+			</div>
+		</div>
+	</td>
+
+	</tr>
+</table>
+{% endblock %}

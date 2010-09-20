@@ -45,11 +45,12 @@ class BaseMachine(object):
             return "undefined"
         return self.state
 
+    # helper method for setting a timeout
     def set_timeout(self, timeout_date):
         self.session.timeout_date = timeout_date
         self.session.save()
 
-    # static helper method for scheduling tasks
+    # helper method for scheduling tasks
     def schedule_task(self, taskname, date, arguments={}):
         nt = ScheduledTask(
             patient = self.patient,
@@ -60,7 +61,7 @@ class BaseMachine(object):
         )
         nt.save()
 
-    # static helper for logging
+    # helper for logging
     def log_message(self, message, outgoing):
         nm = SessionMessage(
             session = self.session,

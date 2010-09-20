@@ -98,8 +98,9 @@ td.column  { height:     352px; }
 #tasks_column .col_header { background: #ccc url('/static/taskmanager/icons/Run.png') no-repeat 5px center; padding-left: 45px; }
 #tasks_column .choosable { background-image: url('/static/taskmanager/icons/Gear.png'); background-repeat: no-repeat; background-position: 5px center; padding-left: 45px; }
 
-.templates_view_table #templates_column { width: 100%; }
 .templates_view_table #templates_column .col_header { background: #ccc url('/static/taskmanager/fugue/bonus/icons-32/script-text.png') no-repeat 5px center; padding-left: 45px; }
+.templates_view_table #selected_template_column .col_header { background: #ccc url('/static/taskmanager/fugue/bonus/icons-32/editable-script.png') no-repeat 5px center; padding-left: 45px; }
+.templates_view_table #templates_column .choosable { background-image: url('/static/taskmanager/fugue/bonus/icons-24/script-export.png'); background-repeat: no-repeat; background-position: 5px center; padding-left: 45px; }
 
 .messages_view_table #messages_column { width: 100%; }
 .messages_view_table #messages_column .col_header { background: #ccc url('/static/taskmanager/fugue/bonus/icons-32/balloon-ellipsis.png') no-repeat 5px center; padding-left: 45px; }
@@ -115,8 +116,8 @@ td.column  { height:     352px; }
 #monitor_column .col_header { background: #ccc url('/static/taskmanager/icons/Monitors.png') no-repeat 5px center; padding-left: 45px; }
 #monitor_column .choosable { background-image: url('/static/taskmanager/icons/Monitor.png'); background-repeat: no-repeat; background-position: 5px center; padding-left: 45px; }
 
-.templates_view_table #templates_column { width: 100%; }
-.templates_view_table #templates_column .col_header { background: #ccc url('/static/taskmanager/fugue/bonus/icons-32/script-text.png') no-repeat 5px center; padding-left: 45px; }
+.status_view_table #status_column { width: 100%; }
+.status_view_table #status_column .col_header { background: #ccc url('/static/taskmanager/fugue/bonus/icons-32/switch.png') no-repeat 5px center; padding-left: 45px; }
 
-.messages_view_table #messages_column { width: 100%; }
-.messages_view_table #messages_column .col_header { background: #ccc url('/static/taskmanager/fugue/bonus/icons-32/balloon-ellipsis.png') no-repeat 5px center; padding-left: 45px; }
+.alerts_view_table #alerts_column { width: 100%; }
+.alerts_view_table #alerts_column .col_header { background: #ccc url('/static/taskmanager/fugue/bonus/icons-32/exclamation-button.png') no-repeat 5px center; padding-left: 45px; }

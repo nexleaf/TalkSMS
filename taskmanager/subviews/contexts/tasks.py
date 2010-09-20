@@ -33,11 +33,15 @@ def merge_contextuals(context, request, taskid):
 
 @csrf_protect
 @login_required
-def templates(request, taskid):
+def templates(request, taskid, tasktemplateid=None):
     field_vars = {
         'section': 'templates',
         'tasktemplates': TaskTemplate.objects.filter(task__id=taskid)
         }
+
+    if tasktemplateid:
+        field_vars['selected_tasktemplateid'] = tasktemplateid
+        field_vars['tasktemplate'] = TaskTemplate.objects.get(pk=tasktemplateid)
     
     merge_contextuals(field_vars, request, taskid)
     return render_to_response('dashboard/contexts/tasks/templates.html', field_vars, context_instance=RequestContext(request))
@@ -74,22 +78,42 @@ from django import forms
 CUSTOM_FIELD_PREFIX = "_custom_arg_"
 
 @login_required
-def update_template(request):
+def add_tasktemplate(request):
     if request.method == 'POST':
-        obj = TaskTemplate.objects.get(pk=request.POST['tasktemplateid'])
-        obj.arguments = request.POST['arguments']
-        obj.save()
+        np = TaskTemplate(
+            name = request.POST['templatename'],
+            task = Task.objects.get(pk=request.POST['selected_taskid'])
+            )
+        np.save()
+
+        # return HttpResponseRedirect(reverse('taskmanager.views.scheduler'))
+        # we redirect them to the patient's new process page
+        return HttpResponseRedirect('/taskmanager/tasks/%s/templates/%d/' % (request.POST['selected_taskid'], np.id))
+
+
+@login_required
+def update_templates(request):
+    if request.method == 'POST':
+        # iterate through all of the elements in the POST that start with "arguments__"
+        # i know it's crazy, but my brain needed a little puzzle...it shouldn't be any less efficient than doing it manually
+        for (id,value) in [(int(i.split("__")[1]), request.POST[i]) for i in request.POST if i.startswith("arguments__")]:
+            obj = TaskTemplate.objects.get(pk=id)
+            obj.arguments = value
+            obj.save()
 
         # return HttpResponseRedirect(reverse('taskmanager.views.scheduler'))
         # we redirect them to the patient's new process page
         return HttpResponseRedirect(request.POST['return_page'])
 
 @login_required
-def update_message(request):
+def update_messages(request):
     if request.method == 'POST':
-        obj = dbtemplates.models.Template.objects.get(pk=request.POST['templateid'])
-        obj.content = request.POST['content']
-        obj.save()
+        # iterate through all of the elements in the POST that start with "arguments__"
+        # i know it's crazy, but my brain needed a little puzzle...it shouldn't be any less efficient than doing it manually
+        for (id,value) in [(int(i.split("__")[1]), request.POST[i]) for i in request.POST if i.startswith("content__")]:
+            obj = dbtemplates.models.Template.objects.get(pk=id)
+            obj.content = value
+            obj.save()
 
         # return HttpResponseRedirect(reverse('taskmanager.views.scheduler'))
         # we redirect them to the patient's new process page
