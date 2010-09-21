@@ -55,6 +55,12 @@ INSTALLED_BACKENDS = {
         "password": "<change>",
         "use_tls": "True",
         "poll_interval": "3" 
+    }, 
+    "phone": {
+        "ENGINE": "rapidsms.backends.gsm",
+        "port": "/dev/ttyUSB0",
+        "baudrate": 115200,
+        "use_sim": "True",
     }
 }
 
