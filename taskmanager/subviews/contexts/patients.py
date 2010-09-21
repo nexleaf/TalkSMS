@@ -144,10 +144,10 @@ def add_patient(request):
             first_name = request.POST['first_name'],
             last_name = request.POST['last_name']
             )
+        np.save()
         # add at least the creator to the list of clinicians for this patient
         np.clinicians.add(request.user.get_profile())
-        np.save()
-
+        
         # return HttpResponseRedirect(reverse('taskmanager.views.scheduler'))
         # we redirect them to the patient's new process page
         return HttpResponseRedirect('/taskmanager/patients/%d/processes/' % (np.id))
