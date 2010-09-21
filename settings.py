@@ -96,7 +96,7 @@ INSTALLED_APPS = [
     "rapidsms.contrib.messaging",
     "rapidsms.contrib.registration",
     "rapidsms.contrib.scheduler",
-    "rapidsms.contrib.search",
+#    "rapidsms.contrib.search",
     "rapidsms.contrib.echo",
 
     # for django-reversion
@@ -112,7 +112,7 @@ INSTALLED_APPS = [
 # tabbed navigation. when adding an app to INSTALLED_APPS, you may wish
 # to add it here, also, to expose it in the rapidsms ui.
 
-TABS = [
+RAPIDSMS_TABS = [
     
 #     ("rapidsms.views.dashboard",                            "Dashboard"),
 #     ("rapidsms.contrib.messagelog.views.message_log",       "Message Log"),
