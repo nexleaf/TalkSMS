@@ -157,7 +157,7 @@ def check_schedule():
         d.addErrback(task_errored, sched_taskid=sched_task.id)
         
     # run again in a bit
-    reactor.callLater(5, check_schedule)
+    reactor.callLater(30, check_schedule)
 
 def check_timeouts():
     # the server we should poke, defined at the top of this file
@@ -181,7 +181,7 @@ def check_timeouts():
             'POST',
             TARGET_TIMEOUT_SERVER,
             Headers({
-                    "Content-Type": ["application/x-www-form-urlencoded"],
+                    "Content-Type": ["application/x-www-form-urlencoded;charset=utf-8"],
                     "Content-Length": [str(len(payload))]
                     }),
             StringProducer(payload))
@@ -190,7 +190,7 @@ def check_timeouts():
         d.addErrback(session_timeout_errored, sessionid=session.id)
         
     # run again in a bit
-    reactor.callLater(5, check_timeouts)
+    reactor.callLater(30, check_timeouts)
 
 def main(port=8080):
     # construct the resource tree

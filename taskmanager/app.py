@@ -16,9 +16,7 @@ from taskmanager.models import *
 class App(rapidsms.apps.base.AppBase):
     def start(self):
 
-        # list of tasks, or sms.statemachines
-        self.tasklist = []
-
+        self.counter = 0
         # keep until persistence is implemented
         # since we're just starting, any existing sessions must be complete
         Session.objects.filter(completed=False).update(completed=True, completed_date=datetime.now(), state='router_restarted')
@@ -31,21 +29,23 @@ class App(rapidsms.apps.base.AppBase):
     def handle (self, message):
         self.debug('in App.handle(): message type: %s, message.text: %s', type(message),  message.text)
         response = self.tm.recv(message)
-        self.debug("message.subject: %s; responding: %s", message.subject, response)
+        #self.debug("message.subject: %s; responding: %s", message.subject, response)
         message.respond(response)
 
 
-    def send(self, ident, s):
+    def send(self, identity, identityType, text):
         self.debug('in App.send():')
         try:
             from rapidsms.models import Backend 
-            bkend, createdbkend = Backend.objects.get_or_create(name="email")        
-            conn, createdconn = rapidsms.models.Connection.objects.get_or_create(backend=bkend, identity=ident)
-            message = rapidsms.messages.outgoing.OutgoingMessage(conn, s)
-            # email just for testing now, removing subject allows easy msg generalization 
-            # message.subject='testing '+ str(self.__class__)
+            bkend, createdbkend = Backend.objects.get_or_create(name=identityType)        
+            conn, createdconn = rapidsms.models.Connection.objects.get_or_create(backend=bkend, identity=identity)
+            message = rapidsms.messages.outgoing.OutgoingMessage(conn, text)
+            
+            if identityType is 'email':
+                message.subject='testing '+ str(self.__class__)
+
             if message.send():
-                self.debug('sent message.text: %s', s)
+                self.debug('sent message.text: %s', text)
         except Exception as e:
             self.debug('problem sending outgoing message: createdbkend?:%s; createdconn?:%s; exception: %s', createdbkend, createdconn, e)
 
@@ -81,7 +81,6 @@ class App(rapidsms.apps.base.AppBase):
             self.debug('sm: %s; cn: %s; sm.node: %s; sm.node.sentcount: %s', sm, cn, sm.node, sm.node.sentcount)
             # if we're still waiting for a response, send a reminder and update sentcount
             if (sm.node.sentcount < sms.StateMachine.MAXSENTCOUNT):
-                sm.node.sentcount += 1
                 self.debug('sm.node.sentcount incremented to: %s', sm.node.sentcount)
                 self.tm.send(statemachine)
         
@@ -123,15 +122,17 @@ class App(rapidsms.apps.base.AppBase):
                                         
     def ajax_GET_status(self, getargs, postargs=None):
         instances = []
-        for statemachine in self.tasklist:
+        for statemachine in self.tm.uism:
             # only serialize the db objects
             instances.append({
                 'session': statemachine.session,
                 'patient': Patient.objects.get(address=statemachine.user.identity),
-                'args': json.loads('{"argstub":"0"}'),
+                'args': {},
                 'state': statemachine.event
                 })
-        return instances
+        self.debug('in app.ajax_GET_status(): instances: %s', instances)
+        #return instances
+        return {'status':'OK'}
 
 
     def session_updatestate(self, session_id, state):
@@ -139,17 +140,19 @@ class App(rapidsms.apps.base.AppBase):
         session.state = state
         self.debug('in app.session_updatestate():')
         session.save()
+        
 
     def session_close(self, session_id):
         # the statemachine is done, mark session closed
         session = Session.objects.get(pk=session_id)        
         session.completed_date = datetime.now()
         session.completed = True
-        session.state = 'preempted'
+        self.debug('in app.session_close():')
         session.save()
 
+
+
     def ajax_POST_exec(self, getargs, postargs=None):
-        self.debug("in app.ajax_POST_exec:")
         task = Task.objects.get(pk=postargs['task'])
         patient = Patient.objects.get(pk=postargs['patient'])
         args = eval(json.loads(postargs['arguments']))
@@ -167,6 +170,7 @@ class App(rapidsms.apps.base.AppBase):
         __import__(task.module, globals(), locals(), [task.className])   
         module = '%s.%s' % (task.module, task.className)
 
+
         print module
         print type(module)
         if not args:
@@ -179,13 +183,14 @@ class App(rapidsms.apps.base.AppBase):
         session.save()
 
         # create and start task
-        self.tasklist.append(t)
         sm = sms.StateMachine(self, smsuser, t.interaction, session.id)
         self.tm.addstatemachines(sm)
         self.tm.run()
 
         # save the session regardless of what happens
         session.save()
+
+        self.counter = self.counter + 1
         
         return {'status': 'OK'}
 
@@ -195,8 +200,9 @@ class App(rapidsms.apps.base.AppBase):
         session = Session.objects.get(pk=postargs['session'])
 
         # gutted
+        print ('in app.ajax_POST_timeout: patient: %s; session: %s', patient, session)
 
-        return {'status': 'ajax_POST_timeout_STUB'}
+        return {'status': 'OK'}
 
 
 def callresend(router, **kwargs):

@@ -33,18 +33,18 @@ class Message(object):
         self.responselist = responselist
         self.autoresend = autoresend
         self.label = label
-        
-        self.__sentcount = 0
+        self.sentcount = 0
+    #     self.__sentcount = 0
     
-    @property
-    def sentcount(self):
-        return self.__sentcount
-    @sentcount.setter
-    def sentcount(self, n):
-        if not n or (n == self.sentcount+1):
-            self.__sentcount = n
-        else:
-            raise ValueError ('Message.sentcount can only be incremented by 1.')
+    # @property
+    # def sentcount(self):
+    #     return self.__sentcount
+    # @sentcount.setter
+    # def sentcount(self, n):
+    #     if not n or (n == self.sentcount+1):
+    #         self.__sentcount = n
+    #     else:
+    #         raise ValueError ('Message.sentcount can only be incremented by 1.')
 
     def __str__(self):
         return '%s:%s %s' % ( self.__class__.__name__, \
@@ -119,15 +119,15 @@ class User(object):
     MAXMSGID = 99
     
     def __init__(self, identity=None, firstname=None, lastname=None, label=None):
-        # handy?
-        #for k,v in attributes.iteritems():
-        #    setattr(self,k,v)
+
+        # identity/identityType corresponds to backends defined in settings.py
+
         if identity is None:
             raise ValueError("Phone number or email required.")
         elif re.match(r'.+@.+', identity):
             self.identity = identity
             self.identityType = 'email'
-        elif re.match(r'^\d+', self.identity):
+        elif re.match(r'^\+\d+', identity):
             self.identity = identity
             self.identityType = 'phone'
         else:
@@ -156,7 +156,7 @@ class StateMachine(object):
       # max number of times a message is sent when expecting a reply
       MAXSENTCOUNT = 3
       # time to resend a message in minutes
-      TIMEOUT = 15
+      TIMEOUT = 3
       
       def __init__(self, app, user, interaction, session_id, label=''):
           self.app = app
@@ -168,8 +168,10 @@ class StateMachine(object):
           self.interaction = interaction
           self.user = user
           self.label = label
-          # expected message id is set when a new message is sent
-          self.msgid = None
+          
+          # msgid is incremented only here, during init, and in handle_response() when a message node has a non-empty responselist,
+          # (that is, when we need to send a new message to track)
+          self.msgid = self.user.msgid.next()
           self.done = False
           # current node in the interaction graph
           self.node = self.interaction.initialnode
@@ -182,11 +184,16 @@ class StateMachine(object):
 
 
       def send_message(self):     
-          self.log.debug('in StateMachine.send_message(): self.event: %s' % self.event)
+          self.log.debug('in StateMachine.send_message(): self.event: %s; self.msgid: %s', self.event, self.msgid)
           self.log.debug('node: %s, node.sentcount: %s' % ( str(self.node), self.node.sentcount ))
           if self.node.sentcount < StateMachine.MAXSENTCOUNT:
-              if not self.node.sentcount:
-                  self.msgid = self.user.msgid.next()
+              # martin, you were right...
+
+              if self.node.sentcount == 0:
+                  self.log.debug('in StateMachine.send_message(): self.node.sentcout==0 and self.msgid is: %s', self.msgid)
+
+                  #self.msgid = self.user.msgid.next()
+                  #self.log.debug('in StateMachine.send_message(): incremented self.msgid to: %s', self.msgid)
               if not self.node.responselist:
                   self.event = 'EXIT'
               else:
@@ -201,7 +208,9 @@ class StateMachine(object):
                        'identity':self.user.identity }                 
                   self.app.schedule_response_reminders(d)
 
-              self.node.sentcount += 1
+              # ????
+              #self.node.sentcount += 1
+              
           else:
               self.log.debug('(current message node reached maxsentcount, exiting StateMachine %s)' % self.label )
               self.event = 'EXIT'
@@ -243,7 +252,11 @@ class StateMachine(object):
                   self.log.debug('callback result: %s.' % (result))
               # advance to the next node
               self.node = self.interaction.mapsTo(self.node, response)
-              self.log.debug('found response match, advanced curnode to %s' % (self.node))
+              # increment msgid only if we need to track a new message
+              if len(self.node.responselist) != 0:
+                  self.msgid = self.user.msgid.next()
+
+              self.log.debug('found response match, advanced curnode to %s, len(self.node.responselist): %s, self.msgid: %s', self.node, len(self.node.responselist), self.msgid)
                             
           elif matchcount == 0: 
               self.log.debug('response did not match expected list of responses, attempting to resend')
@@ -257,6 +270,7 @@ class StateMachine(object):
           self.log.debug('in StateMachine.close(): self.event: %s' % self.event)
           self.done = True
           # support cens gui
+          self.app.session_updatestate(self.session_id, self.event)
           self.app.session_close(self.session_id)
           
               
@@ -336,6 +350,7 @@ class TaskManager(object):
         """remove statemachine from user's and taskmanager's lists"""
         assert(statemachine in self.uism)
         assert(len(self.uism) > 0)
+
         try:
             i = self.uism.index(statemachine)
             self.uism.pop(i)            
@@ -353,7 +368,7 @@ class TaskManager(object):
         # we're getting here right after sentcount was updated in SM,
         # so pretending we're back there...
         # a cleaner solution is to put this method back in SM however, this will be messy until rapidsms releases.
-        if (node.sentcount-1 > 0):
+        if (node.sentcount > 0):
           s += '\n(resending message since the response was not understood or not received)\n'
         if node.responselist:
           s += '\nPlease prepend response with message id: \"%d\".\n' % (msgid)
@@ -369,8 +384,9 @@ class TaskManager(object):
         # bypassing this will be messy
         # statemachine.msgid = statemachine.user.msgid.next()
         s = TaskManager.build_send_str(statemachine.node, statemachine.msgid)
+        statemachine.node.sentcount += 1
         self.log.info('in TaskManager.send(): preparing to send s: %s' % s)
-        self.app.send(statemachine.user.identity, s)
+        self.app.send(statemachine.user.identity, statemachine.user.identityType, s)
 
         
     def recv(self, rmessage):
