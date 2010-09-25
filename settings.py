@@ -213,7 +213,13 @@ ROOT_URLCONF = "rapidsms.djangoproject.urls"
 # virtual database for each thread, and syncdb is only called for the
 # first. this leads to confusing "no such table" errors. so i'm
 # defaulting to a temporary file instead.
-import os, tempfile
-TEST_DATABASE_NAME = os.path.join(
-    tempfile.gettempdir(),
-    "rapidsms.test.sqlite3")
+import os
+import tempfile
+import sys
+
+if 'test' in sys.argv:
+    for db_name in DATABASES:
+        DATABASES[db_name]['TEST_NAME'] = os.path.join(
+            tempfile.gettempdir(),
+            "%s.rapidsms.test.sqlite3" % db_name)
+
