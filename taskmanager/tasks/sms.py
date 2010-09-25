@@ -346,6 +346,7 @@ class TaskManager(object):
                 self.log.debug('in TaskManager.addstatemachines(): len(self.uism): %s'  % len(self.uism))                
                 assert(len(self.uism) > 0)
 
+
     def pop(self, statemachine):
         """remove statemachine from user's and taskmanager's lists"""
         assert(statemachine in self.uism)
