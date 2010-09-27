@@ -2,7 +2,6 @@ import sys, json, re
 from datetime import datetime, timedelta
 
 import rapidsms
-import rapidsms.contrib.scheduler.app as sched
 from rapidsms.contrib.scheduler.models import EventSchedule, ALL
 
 import tasks.sms as sms
@@ -59,20 +58,18 @@ class App(rapidsms.apps.base.AppBase):
         
         t = datetime.now()
         s = timedelta(minutes=m)
-        one = timedelta(minutes=1)
     
         # for n in [(t + 1*s), (t + 2*s), ... (t + r+s)], where r goes from [1, reps+1)
-        for n in [t + r*s for r in range(1,reps+1)]:
-            st,et = n,n+one
-            self.debug('scheduling a reminder to fire between [%s, %s]', st, et)
-            schedule = EventSchedule(callback=cb, minutes=ALL, callback_kwargs=d, start_time=st, end_time=et)
+        for st in [t + r*s for r in range(1,reps+1)]:
+            self.debug('scheduling a reminder to fire after %s', st)
+            schedule = EventSchedule(callback=cb, minutes=ALL, callback_kwargs=d, start_time=st, count=1)
             schedule.save()               
               
     def resend(self, msgid=None, identity=None):
         self.debug('in App.resend():')        
         statemachine = self.findstatemachine(msgid, identity)
 
-        if statemachine:
+        if statemachine and not statemachine.done:
             assert(isinstance(statemachine, sms.StateMachine)==True)
             assert(statemachine.msgid==msgid)
             sm = statemachine
@@ -215,6 +212,5 @@ def callresend(router, **kwargs):
     app.debug('%s', datetime.now())
     app.debug('router: %s; received: kwargs:%s' % (router, kwargs))
 
-### need to delete last event from the db:
-    # look up by kwargs and if now > insert timestamp...    
+    # rapidsms.contrib.scheduler marks each entry with EventSchedule.active=0 after it's fired.
     app.resend(kwargs['msgid'], kwargs['identity'])

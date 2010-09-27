@@ -151,7 +151,7 @@ class User(object):
 
 class StateMachine(object):
       """
-      StateMachine keeps track of the flow through an Interaction.
+      StateMachine keeps track of the flow through an Interaction graph.
       """
       # max number of times a message is sent when expecting a reply
       MAXSENTCOUNT = 3
@@ -173,6 +173,7 @@ class StateMachine(object):
           # (that is, when we need to send a new message to track)
           self.msgid = self.user.msgid.next()
           self.done = False
+
           # current node in the interaction graph
           self.node = self.interaction.initialnode
           self.event = 'SEND_MESSAGE'
@@ -187,29 +188,22 @@ class StateMachine(object):
           self.log.debug('in StateMachine.send_message(): self.event: %s; self.msgid: %s', self.event, self.msgid)
           self.log.debug('node: %s, node.sentcount: %s' % ( str(self.node), self.node.sentcount ))
           if self.node.sentcount < StateMachine.MAXSENTCOUNT:
-              # martin, you were right...
 
               if self.node.sentcount == 0:
                   self.log.debug('in StateMachine.send_message(): self.node.sentcout==0 and self.msgid is: %s', self.msgid)
 
-                  #self.msgid = self.user.msgid.next()
-                  #self.log.debug('in StateMachine.send_message(): incremented self.msgid to: %s', self.msgid)
               if not self.node.responselist:
                   self.event = 'EXIT'
               else:
                   self.event = 'WAIT_FOR_RESPONSE'
 
                   # schedule at most 3 resend's each spaced out by TIMEOUT minutes from now.
-                  
                   d = {'callback':'taskmanager.app.callresend',
                        'minutes':StateMachine.TIMEOUT,
                        'repetitions':StateMachine.MAXSENTCOUNT,
                        'msgid':self.msgid,
                        'identity':self.user.identity }                 
                   self.app.schedule_response_reminders(d)
-
-              # ????
-              #self.node.sentcount += 1
               
           else:
               self.log.debug('(current message node reached maxsentcount, exiting StateMachine %s)' % self.label )
@@ -220,7 +214,8 @@ class StateMachine(object):
           self.log.debug('in StateMachine.wait_for_response(): self.event: %s' % self.event)
 
           # wait_for_response() is called only when there is a response (left in mbox)
-          # if there isn't one there, it used to mean a call-back timer was called
+          # if there isn't one there, it means a call-back timer was triggered,
+          # which kicked the statemachine with no package in mbox.
           if not self.mbox:
               self.log.debug('(timer timed_out while waiting for response; resending)')
               self.event = 'SEND_MESSAGE'
@@ -243,7 +238,8 @@ class StateMachine(object):
               # find index for the match
               i = [m is not None for m in matches].index(True)
               response = self.node.responselist[i]
-              # call response obj's developer defined callback
+ 
+             # call response obj's developer defined callback
               if hasattr(response, 'callback'):
                   self.log.debug('calling callback defined in %s' % (response))
                   response.args = []
@@ -252,8 +248,9 @@ class StateMachine(object):
                   self.log.debug('callback result: %s.' % (result))
               # advance to the next node
               self.node = self.interaction.mapsTo(self.node, response)
+
               # increment msgid only if we need to track a new message
-              if len(self.node.responselist) != 0:
+              if self.node.responselist:
                   self.msgid = self.user.msgid.next()
 
               self.log.debug('found response match, advanced curnode to %s, len(self.node.responselist): %s, self.msgid: %s', self.node, len(self.node.responselist), self.msgid)
@@ -270,7 +267,6 @@ class StateMachine(object):
           self.log.debug('in StateMachine.close(): self.event: %s' % self.event)
           self.done = True
           # support cens gui
-          self.app.session_updatestate(self.session_id, self.event)
           self.app.session_close(self.session_id)
           
               
@@ -370,9 +366,9 @@ class TaskManager(object):
         # so pretending we're back there...
         # a cleaner solution is to put this method back in SM however, this will be messy until rapidsms releases.
         if (node.sentcount > 0):
-          s += '\n(resending message since the response was not understood or not received)\n'
+          s += '\n(resending message since the response was not understood or not received)'
         if node.responselist:
-          s += '\nPlease prepend response with message id: \"%d\".\n' % (msgid)
+          s += '\nPlease prepend response with message id: \"%d\".' % (msgid)
         return s
                 
     # the first send is app.start() -> tm.run() -> sm.kick() -> app.send().
