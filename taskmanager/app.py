@@ -14,7 +14,6 @@ from taskmanager.models import *
 
 class App(rapidsms.apps.base.AppBase):
     def start(self):
-
         self.counter = 0
         # keep until persistence is implemented
         # since we're just starting, any existing sessions must be complete
@@ -48,6 +47,7 @@ class App(rapidsms.apps.base.AppBase):
         except Exception as e:
             self.debug('problem sending outgoing message: createdbkend?:%s; createdconn?:%s; exception: %s', createdbkend, createdconn, e)
 
+
     # schedules reminder to respond messages
     def schedule_response_reminders(self, d):
         self.debug('in App.schedulecallback(): self.router: %s', self.router)
@@ -67,20 +67,30 @@ class App(rapidsms.apps.base.AppBase):
               
     def resend(self, msgid=None, identity=None):
         self.debug('in App.resend():')        
-        statemachine = self.findstatemachine(msgid, identity)
+        sm = self.findstatemachine(msgid, identity)
 
-        if statemachine and not statemachine.done:
-            assert(isinstance(statemachine, sms.StateMachine)==True)
-            assert(statemachine.msgid==msgid)
-            sm = statemachine
-            cn = statemachine.node
+        if sm and not sm.done:
+            assert(isinstance(sm, sms.StateMachine)==True)
+            assert(sm.msgid==msgid)
 
-            self.debug('sm: %s; cn: %s; sm.node: %s; sm.node.sentcount: %s', sm, cn, sm.node, sm.node.sentcount)
+            self.debug('statemachine: %s; currentnode: %s; statemachine.node.sentcount: %s', sm, sm.node, sm.node.sentcount)
             # if we're still waiting for a response, send a reminder and update sentcount
-            if (sm.node.sentcount < sms.StateMachine.MAXSENTCOUNT):
-                self.debug('sm.node.sentcount incremented to: %s', sm.node.sentcount)
-                self.tm.send(statemachine)
+            #if (sm.node.sentcount < sms.StateMachine.MAXSENTCOUNT):
+            #    self.debug('sm.node.sentcount incremented to: %s', sm.node.sentcount)                
+            sm.kick()
+            self.tm.send(sm)
         
+
+    # support cens gui
+    def log_message(self, session_id, message, outgoing):
+        session = Session.objects.get(pk=session_id)
+        nm = SessionMessage(
+            session = session,
+            message=message,
+            outgoing=outgoing
+            )
+        nm.save()
+
 
     def findstatemachine(self, msgid, identity):
         self.debug('in App.findstatemachine(): msgid:%s, identity: %s', msgid, identity)
@@ -107,8 +117,9 @@ class App(rapidsms.apps.base.AppBase):
         """find or create user"""
         # should be a db look up
         for statemachine in self.tm.uism:
-            if statemachine.user.identity in identity:
+            if identity in statemachine.user.identity:
                 return statemachine.user
+
         try:
             user = sms.User(identity=identity, firstname=firstname, lastname=lastname)
         except Exception as e:
@@ -133,9 +144,13 @@ class App(rapidsms.apps.base.AppBase):
 
 
     def session_updatestate(self, session_id, state):
-        session = Session.objects.get(pk=session_id)
-        session.state = state
         self.debug('in app.session_updatestate():')
+        session = Session.objects.get(pk=session_id)
+        translate = { 'SEND_MESSAGE'     : 'sending message',
+                      'WAIT_FOR_RESPONSE': 'waiting for response',
+                      'HANDLE_RESPONSE'  : 'processing response',
+                      'EXIT'             : 'done' }
+        session.state = translate[state]
         session.save()
         
 
@@ -146,7 +161,6 @@ class App(rapidsms.apps.base.AppBase):
         session.completed = True
         self.debug('in app.session_close():')
         session.save()
-
 
 
     def ajax_POST_exec(self, getargs, postargs=None):
@@ -167,7 +181,6 @@ class App(rapidsms.apps.base.AppBase):
         __import__(task.module, globals(), locals(), [task.className])   
         module = '%s.%s' % (task.module, task.className)
 
-
         print module
         print type(module)
         if not args:
@@ -176,18 +189,13 @@ class App(rapidsms.apps.base.AppBase):
             t = eval(module)(smsuser, args)
 
         # create a new session in db (sessions are only killed when statemachines are done)
-        session = Session(patient=patient, task=task, process=process, state='unknown')
+        session = Session(patient=patient, task=task, process=process, state='initializing')
         session.save()
 
         # create and start task
         sm = sms.StateMachine(self, smsuser, t.interaction, session.id)
         self.tm.addstatemachines(sm)
         self.tm.run()
-
-        # save the session regardless of what happens
-        session.save()
-
-        self.counter = self.counter + 1
         
         return {'status': 'OK'}
 

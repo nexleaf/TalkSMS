@@ -34,17 +34,6 @@ class Message(object):
         self.autoresend = autoresend
         self.label = label
         self.sentcount = 0
-    #     self.__sentcount = 0
-    
-    # @property
-    # def sentcount(self):
-    #     return self.__sentcount
-    # @sentcount.setter
-    # def sentcount(self, n):
-    #     if not n or (n == self.sentcount+1):
-    #         self.__sentcount = n
-    #     else:
-    #         raise ValueError ('Message.sentcount can only be incremented by 1.')
 
     def __str__(self):
         return '%s:%s %s' % ( self.__class__.__name__, \
@@ -156,7 +145,7 @@ class StateMachine(object):
       # max number of times a message is sent when expecting a reply
       MAXSENTCOUNT = 3
       # time to resend a message in minutes
-      TIMEOUT = 3
+      TIMEOUT = 10
       
       def __init__(self, app, user, interaction, session_id, label=''):
           self.app = app
@@ -242,8 +231,9 @@ class StateMachine(object):
              # call response obj's developer defined callback
               if hasattr(response, 'callback'):
                   self.log.debug('calling callback defined in %s' % (response))
-                  response.args = []
-                  response.kwargs = {'response':rnew, 'session_id':self.session_id}
+                  # send back rnew, session_id
+                  response.kwargs['response'] = rnew
+                  response.kwargs['session_id'] = self.session_id
                   result = response.callback(*response.args, **response.kwargs)
                   self.log.debug('callback result: %s.' % (result))
               # advance to the next node
@@ -291,7 +281,7 @@ class TaskManager(object):
     TM also interacts with the Scheduler to post/get user; task; arguments, in order to schedule start of
     future interactions. (tasks are statemachines....)
     """
-    LENGTH = 30
+
     TRYS = 3
     
     def __init__(self, app):
@@ -305,35 +295,7 @@ class TaskManager(object):
 
         # maintain a list of all statemachines
         self.uism = []
-
-#    @staticmethod
-#    def schedule(pf):
-        # import pycurl
-        # c = pycurl.Curl()
-        # c.setopt(c.URL, 'http://localhost/schedule')
-        # c.setopt(c.PORT, 8080)
-        # print 'in TaskManager.schedule(): about to post'
-        # c.setopt(c.HTTPPOST, pf)
-        # print 'in TaskManager.schedule():'
-        # c.setopt(c.VERBOSE, 0)
-        # c.perform()
-        # c.close()
-
-    @staticmethod
-    def schedule(d):
-        self.log.debug('in Taskmanager.schedule():')
-        session = Session.objects.get(pk=d['session_id'])
-        self.log.debug('session: %s', session)
-        nt = ScheduledTask(
-            patient = Patient.objects.get(address=d['user']),
-            task = Task.objects.get(name=d['task']),
-            process = session.process,
-            arguments = json.dumps(d['args']),
-            schedule_date = d['schedule_date']
-        )
-        self.log.debug('nt: %s', nt)
-        nt.save()
-
+        
 
     def addstatemachines(self, *statemachines):
         for sm in statemachines:
@@ -361,29 +323,26 @@ class TaskManager(object):
         
     @staticmethod
     def build_send_str(node, msgid):
-        s = ''.join(node.question)
-        # we're getting here right after sentcount was updated in SM,
-        # so pretending we're back there...
-        # a cleaner solution is to put this method back in SM however, this will be messy until rapidsms releases.
+        text = ''.join(node.question)
         if (node.sentcount > 0):
-          s += '\n(resending message since the response was not understood or not received)'
+          text += '\n(resending message since the response was not understood or not received)'
         if node.responselist:
-          s += '\nPlease prepend response with message id: \"%d\".' % (msgid)
-        return s
+          text += '\nPlease prepend response with message id: \"%d\".' % (msgid)
+
+        node.sentcount += 1
+        self.log.debug('in TaskManager.build_send_str(): incrementing node.sentcount: %s', node.sentcount)
+
+        return text
                 
     # the first send is app.start() -> tm.run() -> sm.kick() -> app.send().
     # then each message is received (or ping-ponged back and forth)
     # by app.handle() -> app.recv() -> sm.kick() which
     # returns a string, 'response' along the same route.     
     def send(self, statemachine):
-        # it's very wrong to be updating the msgid outside of the statemachine.
-        # msgid should only be updated when sm advances to the next msg node in the graph.
-        # bypassing this will be messy
-        # statemachine.msgid = statemachine.user.msgid.next()
-        s = TaskManager.build_send_str(statemachine.node, statemachine.msgid)
-        statemachine.node.sentcount += 1
-        self.log.info('in TaskManager.send(): preparing to send s: %s' % s)
-        self.app.send(statemachine.user.identity, statemachine.user.identityType, s)
+        text = TaskManager.build_send_str(statemachine.node, statemachine.msgid)
+        self.log.info('in TaskManager.send(): preparing to send text: %s' % text)
+        self.app.log_message(statemachine.session_id, text, True)
+        self.app.send(statemachine.user.identity, statemachine.user.identityType, text)
 
         
     def recv(self, rmessage):
@@ -425,9 +384,19 @@ class TaskManager(object):
                 if (sm.user.identity == rmessage.peer):
                     if (sm.msgid == int(rmsgid)):
                         self.log.debug('found sm')
+
+                        # support cens gui
+                        # log received msg
+                        self.app.log_message(sm.session_id, rmsgid + ' ' + rtext, False)
+
                         sm.kick(rtext)
                         response = TaskManager.build_send_str(sm.node, sm.msgid)
                         self.log.debug('and response = %s' % response)
+
+                        # support cens gui
+                        # log reply
+                        self.app.log_message(sm.session_id, response, True)
+
                     break
                 # sm's are popped only after receiving the next message from app.handle().
                 # since new sm's are appended onto the end of the list, sm's which are done are popped eventually.
@@ -446,7 +415,9 @@ class TaskManager(object):
             if sm.node == sm.interaction.initialnode:
                 sm.kick()
                 self.send(sm)
-        
+
+
+
 
 
     

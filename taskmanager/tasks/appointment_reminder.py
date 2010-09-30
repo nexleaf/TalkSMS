@@ -5,83 +5,69 @@ import sms
 from datetime import datetime, timedelta
 import json, re
 
-class AppointmentReminder(object):
-    def __init__(self, user, *args):
+from django.template.loader import render_to_string
+from taskmanager.models import *
 
-        print 'in appointment reminder: args: %s' % args
-        args = eval(args[0])
-        print 'in appointment reminder: args: %s' % args
+class AppointmentReminder(object):
+    def __init__(self, user, args=None):
+
+        self.args = args
+
+        print 'in AppointmentReminder:: self.args: %s; type(self.args):%s' % (self.args, type(self.args))
         
-        assert(isinstance(args, list))
-        print 'args: %s; args[0]:%s; args[1]:%s' % (args, args[0], args[1])
-        self.drname = args[0]
-        self.appttime = datetime.strptime(args[1], "%Y-%m-%dT%H:%M:%S")
-            
         if isinstance(user, sms.User):
             self.user = user
+            self.patient = Patient.objects.get(address=self.user.identity)
         else:
-            raise ValueError('in %s: unknown type given for user: %s', self.__class__, user)
+            raise ValueError('unknown type given for user: %s' % user)
         
+        # out of sms spec. 
+        # it seems awkward to me to shoehorn this behavior in...perhaps there's a cleaner way?
         # m1
-        q1 = """Hello {firstname}, you scheduled an appointment with {drname} for {date}.
-                If this is good for you, reply 'ok'.
-                If you would like to reschedule, text back a date like this (mm/dd/yyyy hh:mm:ss).
-                Otherwise, if you would like to cancel the appointment,
-                reply 'cancel' or 'no'.""".format(firstname=self.user.firstname, drname=self.drname, date=self.appttime)
+        if 'nocancel' in self.args:
+            # something like:
+            # {% load parse_date %}Hello {{ patient.first_name }}. 
+            # Reminder: your appointment for {{ args.appt_type }} is {% if args.daybefore %}tomorrow{% else %}today{% endif %} 
+            # at {{ args.appt_date|parse_date|time:"g:i A" }}.{% if args.requires_fasting %}No eating or drinking (except water) 
+            # for 9hrs before your appointment.{% endif %} Text back OK to confirm receipt of this message.
+            q1 = render_to_string('tasks/appts/reminder_nocancel.html', {'patient': self.patient, 'args': self.args})
+        else: 
+            # something like:
+            # {% load parse_date %}Hello {{ patient.first_name }}. 
+            # Reminder: your {{ args.appt_type }} is on {{ args.appt_date|parse_date|date:"n/d" }} at {{ args.appt_date|parse_date|time:"g:i A" }}.  
+            # If the appointment is cancelled, Text back CANCEL.
+            q1 = render_to_string('tasks/appts/reminder.html', {'patient': self.patient, 'args': self.args})
         r1 = sms.Response('ok', r'ok|OK|Ok')
-        r2 = sms.Response('12/31/2012 15:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', callback=self.reschedule)
-        r3 = sms.Response('cancel', r'cancel|no', callback=self.cancel)
-        m1 = sms.Message(q1, [r1,r2,r3])
+        r2 = sms.Response('cancel', r'cancel|no', callback=self.cancel)
+        m1 = sms.Message(q1, [r1,r2])
     
         # m2
-        q2 = 'Great, see you then.'
-        m2 = sms.Message(q2, [])
+        m2 = sms.Message('See you soon.', [])
         
         # m3
-        q3 = 'Ok, we will send you details about rescheduling soon.'
-        m3 = sms.Message(q3, [])
+        m3 = sms.Message('Ok, canceling reminders as you requested.', [])
         
-        # m4
-        q4 = 'Ok, we have cancelled your appointment as you have requested.'
-        m4 = sms.Message(q4, [])
-        
-        self.graph = { m1: [m2, m3, m4],
+        self.graph = { m1: [m2, m3],
                        m2: [],
-                       m3: [],
-                       m4: [] }
+                       m3: [] }
         
         self.interaction = sms.Interaction(self.graph, m1, self.__class__.__name__ + '_interaction')
 
-    def reschedule(self, *args, **kwargs):
-        ndatetime = kwargs['response']
-        session_id = kwargs['session_id']
-        
-        assert(re.match(r'\d+/\d+/\d+.\d+:\d+:\d+', ndatetime) is not None)
-        print 'in %s.%s: user responsed with date: %s' % (self.__class__, self.__class__.__name__, kwargs['response'])
-
-        # find old appointment and cancel
-        # search appointment calendar for the nearest open appointment returning datetime (ndatetime used here)
-        t = datetime.strptime(ndatetime, "%m/%d/%Y %H:%M:%S")
-        s = timedelta(days=3)
-        i = timedelta(microseconds=1)
-
-        appttime = t.isoformat()
-        remindertime = (t-s+i).isoformat()
-
-        # scheduler does this:
-        # if remindertime is earlier than now,
-        #   schedule the reminder to be sent immediately.
-
-        
-        d = {'task': 'Appointment Reminder', 'user':self.user.identity, 'args':[self.drname, appttime], 'schedule_date':remindertime, 'session_id': session_id}
-        #pf = [( 'sarg', json.dumps(d) )]
-
-        try:
-            sms.TaskManager.schedule(d)
-        except:
-            print 'error: could not schedule '
 
     def cancel(self, *args, **kwargs):
-        # search for user's current appointment with drname and cancel
-        print 'in %s.%s: user responsed with date: %' % (self.__class__, self.__class__.__name__, response)
-        print 'cancelling current appointment'
+        session_id = kwargs['session_id']
+        session = Session.objects.get(pk=session_id)        
+
+        # set up alert
+        alert_args = {}
+        if self.patient and session_id is not None:
+            alert_args['url'] = '/taskmanager/patients/%d/history/#session_%d' % (self.patient.id, session_id)
+        alert_args.update(args)
+        Alert.objects.add_alert("Appointment Canceled", arguments=alert_args, patient=self.patient)
+
+        # deactivate all the old scheduled tasks on this process
+        # since the statemachine ends after this callback, no need to cancel any response reminders...
+        ScheduledTask.objects.filter(process=session.process).update(active=False)
+
+
+
