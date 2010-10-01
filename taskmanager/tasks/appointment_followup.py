@@ -62,15 +62,19 @@ class AppointmentFollowup(object):
         ndatetime = kwargs['response']
         session_id = kwargs['session_id']
         
-        print 'in %s.%s: user responsed with date: %s' % (self.__class__, self.__class__.__name__, kwargs['response'])        
+        print 'in %s: user responsed with date: %s' % (self.__class__, kwargs['response'])
+        print 'args: %s kwargs: %s' % (args, kwargs)
+        print 'self.args: %s' % (self.args)
+
         t = datetime.strptime(ndatetime, "%m/%d/%Y %H:%M:%S")
 
-        # make sure we pass on the appointment date
-        self.args['appt_date'] = t
         appttime = t.isoformat()
+        # make sure we pass on the appointment date
+        self.args['appt_date'] = appttime
+        print 'self.args: %s' % (self.args)        
 
         # sched a reminder. 
-        d1 = {'task': 'Appointment Reminder','user':self.user.identity,'args': self.args,'schedule_date': t ,'session_id':session_id}
+        d1 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': t,'session_id': session_id}
 
         try:
             taskscheduler.schedule(d1)
