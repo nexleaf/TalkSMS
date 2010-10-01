@@ -58,7 +58,7 @@ class AppointmentFollowup(object):
         Alert.objects.add_alert("Appointment Feedback", arguments=alert_data, patient=self.patient)
     
 
-    def schedule_new_appointment(self, *args, **kwargs):
+    def reschedule_reminder(self, *args, **kwargs):
         ndatetime = kwargs['response']
         session_id = kwargs['session_id']
         
