@@ -25,10 +25,6 @@ class AppointmentRequest(object):
 
         self.args = args
 
-        # hack...this doesn't seem to be set anywhere else
-        if 'contact_number' not in self.args:
-            self.args['contact_number'] = '+13105555555'
-
         print 'in appointmentrequest: self.args: %s; type(self.args):%s' % (self.args, type(self.args))
         
         if isinstance(user, sms.User):
@@ -39,10 +35,9 @@ class AppointmentRequest(object):
 
 
         # m1
-        # something like: 
-        # Hello {{ patient.first_name }}, you're due for a {{ args.appt_type }}. 
-        # Call {{ args.contact_number }} to schedule.  
-        # Text me back a date and time (like 10/1/2012 16:30:00) after you schedule. Text STOP to stop messages
+        # resolves to: 
+        # Hi {{ patient.first_name }}. Please schedule a {{ args.appt_type }}. 
+        # Reply with a time (like 10/1/2012 16:30:00), or 'stop' to quit. 
         q1 = render_to_string('tasks/appts/request.html', {'patient': self.patient, 'args': self.args})
         r1 = sms.Response('stop', r'stop|STOP', label='stop', callback=self.appointment_cancelled_alert)
         r2 = sms.Response('8/30/2012 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.schedule_reminders)
@@ -51,9 +46,8 @@ class AppointmentRequest(object):
         q2 = 'Ok, stopping messages now. Thank you for participating.'
         m2 = sms.Message(q2, [])
         # m3
-        # something like:
-        # Thank you; your {{ args.appt_type }} is scheduled for {{ appt_date|date:"n/d" }} at {{ appt_date|time:"g:i A" }}. 
-        # You'll be reminded two days before, the night before, and the morning of your appointment.
+        # resolves to:
+        # Great, we set up 3 appt. reminders and a followup for you.
         q3 = render_to_string('tasks/appts/rescheduled.html', {'args': self.args})
         m3 = sms.Message(q3, [])
         
@@ -92,9 +86,9 @@ class AppointmentRequest(object):
         self.args['appt_date'] = appttime
         print 'self.args: %s' % (self.args)        
 
-        # easier to track msgs
         testing = True
         if testing:
+            # easier to track msgs
             s = timedelta(seconds=900) # 15 minutes
             a = t+s    # first reminder 15 minutes after datetime reply
             b = t+2*s  # second is 30 minutes after

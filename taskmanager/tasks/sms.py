@@ -132,6 +132,7 @@ class User(object):
 
         # possible memory hog when msgid is large
         self.msgid = itertools.cycle(range(User.MAXMSGID+1))
+        
 
     @property
     def username(self):
@@ -158,7 +159,7 @@ class StateMachine(object):
           self.user = user
           self.label = label
           
-          # msgid is incremented only here, during init, and in handle_response() when a message node has a non-empty responselist,
+          # msgid is incremented only during init (here), and in handle_response() when a message node has a non-empty responselist,
           # (that is, when we need to send a new message to track)
           self.msgid = self.user.msgid.next()
           self.done = False
@@ -175,28 +176,37 @@ class StateMachine(object):
 
       def send_message(self):     
           self.log.debug('in StateMachine.send_message(): self.event: %s; self.msgid: %s', self.event, self.msgid)
-          self.log.debug('node: %s, node.sentcount: %s' % ( str(self.node), self.node.sentcount ))
+          self.log.debug('self.node: %s, self.node.sentcount: %s' % ( str(self.node), self.node.sentcount ))
+
           if self.node.sentcount < StateMachine.MAXSENTCOUNT:
 
-              if self.node.sentcount == 0:
-                  self.log.debug('in StateMachine.send_message(): self.node.sentcout==0 and self.msgid is: %s', self.msgid)
-
               if not self.node.responselist:
+
                   self.event = 'EXIT'
+
               else:
+
                   self.event = 'WAIT_FOR_RESPONSE'
 
+                  # if this is the first time we're sending this message,
                   # schedule at most 3 resend's each spaced out by TIMEOUT minutes from now.
-                  d = {'callback':'taskmanager.app.callresend',
-                       'minutes':StateMachine.TIMEOUT,
-                       'repetitions':StateMachine.MAXSENTCOUNT,
-                       'msgid':self.msgid,
-                       'identity':self.user.identity }                 
-                  self.app.schedule_response_reminders(d)
+                  if self.node.sentcount == 0:
+                      d = {'callback':'taskmanager.app.callresend',
+                           'minutes':StateMachine.TIMEOUT,
+                           'repetitions':StateMachine.MAXSENTCOUNT,
+                           'msgid':self.msgid,
+                           'identity':self.user.identity }                 
+                      self.app.schedule_response_reminders(d)
+
+              # this is the only place sentcount should be incremnted
+              self.node.sentcount += 1
+              self.log.debug('incremented self.node.sentcout: %s; self.msgid: %s', self.node.sentcount, self.msgid)
               
           else:
+
               self.log.debug('(current message node reached maxsentcount, exiting StateMachine %s)' % self.label )
               self.event = 'EXIT'
+
 
               
       def wait_for_response(self):
@@ -206,49 +216,63 @@ class StateMachine(object):
           # if there isn't one there, it means a call-back timer was triggered,
           # which kicked the statemachine with no package in mbox.
           if not self.mbox:
+
               self.log.debug('(timer timed_out while waiting for response; resending)')
               self.event = 'SEND_MESSAGE'
+
           else:
+
               self.event = 'HANDLE_RESPONSE'
           
 
+
       def handle_response(self):
-          self.log.debug('in StateMachine.handle_response(): self.event: %s' % self.event)
+          self.log.debug('in StateMachine.handle_response(): self.event: %s', self.event)
 
           assert(self.mbox is not None)
           rnew = self.mbox
-          self.log.debug('rnew: \'%s\'' % rnew)
+          self.log.debug('rnew: \'%s\'', rnew)
 
+          # did the new response match anything in the responselist?
           matches = [r.match(rnew) for r in self.node.responselist]
           matchcount = len(matches) - matches.count(None)
-          self.log.debug('matches: %s' % matches)          
-          self.log.debug('matchcount: %s' % matchcount)          
+          self.log.debug('matches: %s', matches)          
+          self.log.debug('matchcount: %s', matchcount)          
+
           if matchcount == 1:
+
+              self.log.debug('found response match')
               # find index for the match
               i = [m is not None for m in matches].index(True)
               response = self.node.responselist[i]
  
-             # call response obj's developer defined callback
+              # advance to the next node
+              self.node = self.interaction.mapsTo(self.node, response)
+              self.log.debug('advanced current node to: %s', self.node)
+
+              # increment msgid every time we handle a response
+              # this throws away a msgid periodically but, we don't guarentee an ordered sequence, just an increasing one...
+              self.msgid = self.user.msgid.next()
+              self.log.debug('incrementing self.msgid to: %s', self.msgid)
+
+              # call response obj's developer defined callback
               if hasattr(response, 'callback'):
-                  self.log.debug('calling callback defined in %s' % (response))
+                  self.log.debug('calling %s callback', response)
                   # send back rnew, session_id
                   response.kwargs['response'] = rnew
                   response.kwargs['session_id'] = self.session_id
                   result = response.callback(*response.args, **response.kwargs)
-                  self.log.debug('callback result: %s.' % (result))
-              # advance to the next node
-              self.node = self.interaction.mapsTo(self.node, response)
-
-              # increment msgid only if we need to track a new message
-              if self.node.responselist:
-                  self.msgid = self.user.msgid.next()
-
-              self.log.debug('found response match, advanced curnode to %s, len(self.node.responselist): %s, self.msgid: %s', self.node, len(self.node.responselist), self.msgid)
+                  self.log.debug('callback result: %s.', result)
                             
           elif matchcount == 0: 
+
               self.log.debug('response did not match expected list of responses, attempting to resend')
+
           else:
-              self.log.debug('rnew: %s, matched more than one response in response list, attempting to resend' % rnew)
+
+              self.log.debug('rnew: %s, matched more than one response in response list, attempting to resend', rnew)
+
+          # processed input, now reply
           self.event = 'SEND_MESSAGE'
 
           
@@ -305,13 +329,14 @@ class TaskManager(object):
                 assert(len(self.uism) > 0)
 
 
-    def pop(self, statemachine):
+    def scrub(self, statemachine):
         """remove statemachine from user's and taskmanager's lists"""
         assert(statemachine in self.uism)
         assert(len(self.uism) > 0)
 
         try:
             i = self.uism.index(statemachine)
+            self.log.debug('in TaskManager.scrub(): deleting statemachine: %s from self.uism', statemachine)
             self.uism.pop(i)            
         except ValueError:
             self.log.error('statemachine is not in self.uism')
@@ -324,27 +349,32 @@ class TaskManager(object):
     @staticmethod
     def build_send_str(node, msgid):
         text = ''.join(node.question)
-        if (node.sentcount > 0):
-          text += '\n(resending message since the response was not understood or not received)'
-        if node.responselist:
-          text += '\nPlease prepend response with message id: \"%d\".' % (msgid)
 
-        node.sentcount += 1
-        self.log.debug('in TaskManager.build_send_str(): incrementing node.sentcount: %s', node.sentcount)
+        if (node.sentcount > 1):
+          text += ' (resending, reply was misunderstood or dropped)'
+        if node.responselist:
+          text += ' Prepend \"%d\" to your reply.' % (msgid)
+
+        print 'in TaskManager.build_send_str(): node.sentcount: %s' % node.sentcount
 
         return text
+
                 
     # the first send is app.start() -> tm.run() -> sm.kick() -> app.send().
     # then each message is received (or ping-ponged back and forth)
     # by app.handle() -> app.recv() -> sm.kick() which
     # returns a string, 'response' along the same route.     
     def send(self, statemachine):
-        text = TaskManager.build_send_str(statemachine.node, statemachine.msgid)
-        self.log.info('in TaskManager.send(): preparing to send text: %s' % text)
-        self.app.log_message(statemachine.session_id, text, True)
-        self.app.send(statemachine.user.identity, statemachine.user.identityType, text)
-
+        # edge-case: sentcount<=max since it's called after last inc of sentcount
+        if statemachine.node.sentcount <= StateMachine.MAXSENTCOUNT:
+            text = TaskManager.build_send_str(statemachine.node, statemachine.msgid)
+            self.log.debug('in TaskManager.send(): node.sentcount: %s, preparing to send text: %s', statemachine.node.sentcount, text)
+            self.app.log_message(statemachine.session_id, text, True)
+            self.app.send(statemachine.user.identity, statemachine.user.identityType, text)
+        else:
+            self.log.debug('in TaskManager.send(): not sending, statemachine.node.sentcount:%s > MAX', statemachine.node.sentcount)
         
+
     def recv(self, rmessage):
         self.log.debug('in TaskManager.recv(): ')
 
@@ -354,8 +384,8 @@ class TaskManager(object):
         if not nid:
             # there was no msgid, send err back up to 3 or 4 times...
             # TODO: 8/4: this will be inserted into the db...
-            self.log.debug('no msgid found in user response, rmessage.peer: %s' % rmessage.peer)
-            peer = rmessage.peer
+            self.log.debug('no msgid found in user response, rmessage.connection.identity %s' % rmessage.connection.identity)
+            peer = rmessage.connection.identity
             if peer not in self.badmsgs:
                 self.badmsgs[peer] = 0
             elif self.badmsgs[peer] < TaskManager.TRYS:  
@@ -373,17 +403,27 @@ class TaskManager(object):
             assert(b==rmsgid)
             rtext = rtext.splitlines()[0].strip()
             self.log.debug('found msgid in response' +\
-                      'rmsgid: \'%s\'; rtext: \'%s\'; peer: \'%s\'' % (rmsgid, rtext, rmessage.peer))           
-            # find the correct statemachine
-            for sm in self.uism:
-                self.log.debug('sm.user.identity: \'%s\'; rmessage.peer: \'%s\'; sm.msgid: \'%s\'; rmsgid: \'%s\'' %\
-                          (sm.user.identity, rmessage.peer, sm.msgid, rmsgid))
-                self.log.debug('sm.user.identity==rmessage.peer -> %s; sm.msgid==int(rmsgid) -> %s' %\
-                          (sm.user.identity==rmessage.peer, sm.msgid==int(rmsgid)))
+                      'rmsgid: \'%s\'; rtext: \'%s\'; peer: \'%s\'' % (rmsgid, rtext, rmessage.connection.identity))           
 
-                if (sm.user.identity == rmessage.peer):
+            # first, exfoliate
+            for sm in self.uism:
+                if sm.done:
+                    self.log.debug('preparing to delete statemachine: %s', sm)
+                    self.scrub(sm)
+
+            # then, find the correct statemachine
+            for sm in self.uism:
+                
+                # i am ahab, this is my whale
+                self.log.debug('sm.user.identity: \'%s\',', sm.user.identity)
+                self.log.debug('rmessage.connection.identity: \'%s\';', rmessage.connection.identity)
+                self.log.debug('sm.msgid: \'%s\'; rmsgid: \'%s\'', sm.msgid, rmsgid)
+                self.log.debug('sm.user.identity==rmessage.connection.identity -> %s', sm.user.identity==rmessage.connection.identity)
+                self.log.debug('sm.msgid==int(rmsgid) -> %s', sm.msgid==int(rmsgid) )
+
+                if (sm.user.identity == rmessage.connection.identity):
                     if (sm.msgid == int(rmsgid)):
-                        self.log.debug('found sm')
+                        self.log.debug('found statemachine: %s', sm)
 
                         # support cens gui
                         # log received msg
@@ -396,12 +436,8 @@ class TaskManager(object):
                         # support cens gui
                         # log reply
                         self.app.log_message(sm.session_id, response, True)
-
+                    # already found and processed, so leave
                     break
-                # sm's are popped only after receiving the next message from app.handle().
-                # since new sm's are appended onto the end of the list, sm's which are done are popped eventually.
-                if sm.done:
-                    self.pop(sm)
 
         return response
                 

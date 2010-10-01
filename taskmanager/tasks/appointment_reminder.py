@@ -21,31 +21,30 @@ class AppointmentReminder(object):
         else:
             raise ValueError('unknown type given for user: %s' % user)
         
-        # out of sms spec. 
-        # it seems awkward to me to shoehorn this behavior in...perhaps there's a cleaner way?
+        # this is awkward for messaging (please refer to the spec). 
+        # a cleaner solution is two reminder tasks like: 'Reminder' and 'Cancellable Reminder'
+        # below you must support both response (ok and cancel) which would allow a user to cancel when you don't want them to...
+
         # m1
         if 'nocancel' in self.args:
-            # something like:
-            # {% load parse_date %}Hello {{ patient.first_name }}. 
-            # Reminder: your appointment for {{ args.appt_type }} is {% if args.daybefore %}tomorrow{% else %}today{% endif %} 
-            # at {{ args.appt_date|parse_date|time:"g:i A" }}.{% if args.requires_fasting %}No eating or drinking (except water) 
-            # for 9hrs before your appointment.{% endif %} Text back OK to confirm receipt of this message.
+            # resolves to:
+            # {% load parse_date %}Your {{ args.appt_type }} is approaching. Reply 'ok' to confirm.
             q1 = render_to_string('tasks/appts/reminder_nocancel.html', {'patient': self.patient, 'args': self.args})
         else: 
-            # something like:
-            # {% load parse_date %}Hello {{ patient.first_name }}. 
-            # Reminder: your {{ args.appt_type }} is on {{ args.appt_date|parse_date|date:"n/d" }} at {{ args.appt_date|parse_date|time:"g:i A" }}.  
-            # If the appointment is cancelled, Text back CANCEL.
+            # resolves to:
+            #{% load parse_date %}Your {{ args.appt_type }} is approaching. Reply 'cancel' to cancel it or 'ok' to confirm.
             q1 = render_to_string('tasks/appts/reminder.html', {'patient': self.patient, 'args': self.args})
         r1 = sms.Response('ok', r'ok|OK|Ok')
         r2 = sms.Response('cancel', r'cancel|no', callback=self.cancel)
         m1 = sms.Message(q1, [r1,r2])
     
         # m2
-        m2 = sms.Message('See you soon.', [])
+        q2 = 'See you soon.'
+        m2 = sms.Message(q2, [])
         
         # m3
-        m3 = sms.Message('Ok, canceling reminders as you requested.', [])
+        q3 = 'Ok, canceling reminders as you requested.'
+        m3 = sms.Message(q3, [])
         
         self.graph = { m1: [m2, m3],
                        m2: [],
@@ -66,7 +65,7 @@ class AppointmentReminder(object):
         Alert.objects.add_alert("Appointment Canceled", arguments=alert_args, patient=self.patient)
 
         # deactivate all the old scheduled tasks on this process
-        # since the statemachine ends after this callback, no need to cancel any response reminders...
+        # the statemachine ends after this callback, no need to cancel any response reminders.
         ScheduledTask.objects.filter(process=session.process).update(active=False)
 
 

@@ -23,20 +23,20 @@ class AppointmentFollowup(object):
 
 
         # m1
-        # something like:
-        # Hello {{ patient.first_name }}. You recently had {{ args.appt_type }}. 
-        # Please reply with COMMENT followed by your feedback to help us improve our service. 
-        # If you missed the appointment and want to be reminded to reschedule, text back a date.
+        # resolves to:
+        # How was your {{ args.appt_type }}? Reply with 'comment' and feedback; or a time (10/1/2020 16:30:00) to reschedule.
         q1 = render_to_string('tasks/appts/request.html', {'patient': self.patient, 'args': self.args})
         r1 = sms.Response('comment', r'comment|COMMENT', label='comment', callback=self.store_feedback)
-        r2 = sms.Response('8/30/2010 16:30', r'\d+/\d+/\d+\s\d+:\d+', label='date', callback=self.reschedule_reminder)
+        r2 = sms.Response('8/30/2010 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.reschedule_reminder)
         m1 = sms.Message(q1, [r1,r2])
 
         # m2
-        m2 = sms.Message('Thank you for your feedback.', [])
+        q2 = 'Thank you for your feedback.'
+        m2 = sms.Message(q2, [])
 
         # m3
-        m3 = sms.Message('Ok, you will be sent a reminder to reschedule as you have requested.', [])
+        q3 = 'Ok, you will be sent a reminder to reschedule as you have requested.'
+        m3 = sms.Message(q3, [])
         
         self.graph = { m1: [m2, m3],
                        m2: [],

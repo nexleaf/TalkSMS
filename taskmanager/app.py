@@ -13,9 +13,12 @@ from taskmanager.models import *
 
 
 class App(rapidsms.apps.base.AppBase):
+
     def start(self):
         self.counter = 0
+
         # keep until persistence is implemented
+        self.smsusers = []
         # since we're just starting, any existing sessions must be complete
         Session.objects.filter(completed=False).update(completed=True, completed_date=datetime.now(), state='router_restarted')
 
@@ -23,6 +26,7 @@ class App(rapidsms.apps.base.AppBase):
         self.tm = sms.TaskManager(self)
         self.tm.run()
         self.debug('app.Taskmanager start time: %s', datetime.now())
+
 
     def handle (self, message):
         self.debug('in App.handle(): message type: %s, message.text: %s', type(message),  message.text)
@@ -48,6 +52,24 @@ class App(rapidsms.apps.base.AppBase):
             self.debug('problem sending outgoing message: createdbkend?:%s; createdconn?:%s; exception: %s', createdbkend, createdconn, e)
 
 
+    def resend(self, msgid=None, identity=None):
+        self.debug('in App.resend():')        
+        sm = self.findstatemachine(msgid, identity)
+
+        if sm and not sm.done:
+            assert(isinstance(sm, sms.StateMachine)==True)
+            assert(sm.msgid==msgid)
+
+            self.debug('statemachine: %s; currentnode: %s; statemachine.node.sentcount: %s', sm, sm.node, sm.node.sentcount)
+            # if we're still waiting for a response, send a reminder and update sentcount
+            #if (sm.node.sentcount < sms.StateMachine.MAXSENTCOUNT):
+            #    self.debug('sm.node.sentcount incremented to: %s', sm.node.sentcount)                
+            sm.kick()
+            self.tm.send(sm)
+        else:
+            self.debug('statemachine has incr to a new node or is done, no need to send a response reminder')
+
+
     # schedules reminder to respond messages
     def schedule_response_reminders(self, d):
         self.debug('in App.schedulecallback(): self.router: %s', self.router)
@@ -64,22 +86,7 @@ class App(rapidsms.apps.base.AppBase):
             self.debug('scheduling a reminder to fire after %s', st)
             schedule = EventSchedule(callback=cb, minutes=ALL, callback_kwargs=d, start_time=st, count=1)
             schedule.save()               
-              
-    def resend(self, msgid=None, identity=None):
-        self.debug('in App.resend():')        
-        sm = self.findstatemachine(msgid, identity)
-
-        if sm and not sm.done:
-            assert(isinstance(sm, sms.StateMachine)==True)
-            assert(sm.msgid==msgid)
-
-            self.debug('statemachine: %s; currentnode: %s; statemachine.node.sentcount: %s', sm, sm.node, sm.node.sentcount)
-            # if we're still waiting for a response, send a reminder and update sentcount
-            #if (sm.node.sentcount < sms.StateMachine.MAXSENTCOUNT):
-            #    self.debug('sm.node.sentcount incremented to: %s', sm.node.sentcount)                
-            sm.kick()
-            self.tm.send(sm)
-        
+                      
 
     # support cens gui
     def log_message(self, session_id, message, outgoing):
@@ -94,52 +101,32 @@ class App(rapidsms.apps.base.AppBase):
 
     def findstatemachine(self, msgid, identity):
         self.debug('in App.findstatemachine(): msgid:%s, identity: %s', msgid, identity)
+
         cl = []
+        statemachine = None
+
         for sm in self.tm.uism:
-            if (sm.msgid == msgid) and (sm.user.identity == identity):
-                cl.append(sm)
+            if sm.done:
+                self.tm.scrub(sm)
+            else:
+                if (sm.msgid == msgid) and (sm.user.identity == identity):
+                    self.debug('found candidate: %s', sm)
+                    cl.append(sm)
                 
         if len(cl) > 1:
             self.error('found more than one statemachine, candidate list: %s', cl)
-            statemachine = None
         elif len(cl) == 0:
             self.debug('found no matching statemachine, candidate list: %s', cl)
-            statemachine = None
         else:
             assert(len(cl)==1)
-            self.debug('found statemachine: %s', cl)
+            self.debug('found unique statemachine: %s', cl[0])
             statemachine = cl[0]
 
         return statemachine
         
-
-    def finduser(self, identity=None, firstname=None, lastname=None):
-        """find or create user"""
-        # should be a db look up
-        for statemachine in self.tm.uism:
-            if identity in statemachine.user.identity:
-                return statemachine.user
-
-        try:
-            user = sms.User(identity=identity, firstname=firstname, lastname=lastname)
-        except Exception as e:
-            user = None
-            self.error('Could not create user using identity: %s; Exception: %s', identity, e)
-        return user
-
                                         
     def ajax_GET_status(self, getargs, postargs=None):
-        instances = []
-        for statemachine in self.tm.uism:
-            # only serialize the db objects
-            instances.append({
-                'session': statemachine.session,
-                'patient': Patient.objects.get(address=statemachine.user.identity),
-                'args': {},
-                'state': statemachine.event
-                })
-        self.debug('in app.ajax_GET_status(): instances: %s', instances)
-        #return instances
+        # gutted, it's not used
         return {'status':'OK'}
 
 
@@ -161,6 +148,31 @@ class App(rapidsms.apps.base.AppBase):
         session.completed = True
         self.debug('in app.session_close():')
         session.save()
+
+
+    def finduser(self, identity=None, firstname=None, lastname=None):
+        self.debug('in App.finduser(): identity: %s, firstname: %s, lastname: %s', identity, firstname, lastname)
+        
+        # will eventually be a db lookup
+        for a in self.smsusers:
+            if identity in a.identity:
+                self.debug('returning existing smsuser: %s', a)
+                return a
+
+        # talksms doesn't yet know of this user, create one.
+        try:
+
+            self.debug('attempting to create a new smsuser')
+            b = sms.User(identity=identity, firstname=firstname, lastname=lastname)
+            self.smsusers.append(b)
+
+        except Exception as e:
+
+            b = None
+            self.error('Could not create user using identity: %s; Exception: %s', identity, e)
+            
+        self.debug('returning new smsuser: %s', b)
+        return b
 
 
     def ajax_POST_exec(self, getargs, postargs=None):
