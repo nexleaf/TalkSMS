@@ -448,7 +448,7 @@ class TaskManager(object):
         # send the first messages. once the statemachines are running,
         # responses will be ping-ponged back and forth from App.handle() to self.recv()
         for sm in self.uism:
-            if sm.node == sm.interaction.initialnode:
+            if sm.node == sm.interaction.initialnode and sm.node.sentcount == 0:
                 sm.kick()
                 self.send(sm)
 

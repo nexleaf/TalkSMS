@@ -68,13 +68,15 @@ class AppointmentFollowup(object):
 
         t = datetime.strptime(ndatetime, "%m/%d/%Y %H:%M:%S")
 
-        appttime = t.isoformat()
+        # support cens gui: app_date used to display appointment time only
+        #                     Tuesday, 5:30pm, November 03, 2010
+        appttime = t.strftime("%A %I:%M%p, %B %d, %Y")
         # make sure we pass on the appointment date
         self.args['appt_date'] = appttime
         print 'self.args: %s' % (self.args)        
 
         # sched a reminder. 
-        d1 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': t,'session_id': session_id}
+        d1 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': t.isoformat,'session_id': session_id}
 
         try:
             taskscheduler.schedule(d1)
