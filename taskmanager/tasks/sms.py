@@ -333,6 +333,7 @@ class TaskManager(object):
         """remove statemachine from user's and taskmanager's lists"""
         assert(statemachine in self.uism)
         assert(len(self.uism) > 0)
+        assert(statemachine.done)
 
         try:
             i = self.uism.index(statemachine)
@@ -414,28 +415,27 @@ class TaskManager(object):
             # then, find the correct statemachine
             for sm in self.uism:
                 
-                # i am ahab, this is my whale
-                self.log.debug('sm.user.identity: \'%s\',', sm.user.identity)
+                # i am whale, this is my ahab
+                self.log.debug('            sm.user.identity: \'%s\',', sm.user.identity)
                 self.log.debug('rmessage.connection.identity: \'%s\';', rmessage.connection.identity)
                 self.log.debug('sm.msgid: \'%s\'; rmsgid: \'%s\'', sm.msgid, rmsgid)
-                self.log.debug('sm.user.identity==rmessage.connection.identity -> %s', sm.user.identity==rmessage.connection.identity)
-                self.log.debug('sm.msgid==int(rmsgid) -> %s', sm.msgid==int(rmsgid) )
+                self.log.debug('##### sm.user.identity==rmessage.connection.identity -> %s', sm.user.identity==rmessage.connection.identity)
+                self.log.debug('#####                          sm.msgid==int(rmsgid) -> %s', sm.msgid==int(rmsgid) )
 
-                if (sm.user.identity == rmessage.connection.identity):
-                    if (sm.msgid == int(rmsgid)):
-                        self.log.debug('found statemachine: %s', sm)
+                if (sm.user.identity == rmessage.connection.identity) and (sm.msgid == int(rmsgid)) :
+                    self.log.debug('found statemachine: %s', sm)
 
-                        # support cens gui
-                        # log received msg
-                        self.app.log_message(sm.session_id, rmsgid + ' ' + rtext, False)
+                    # support cens gui
+                    # log received msg
+                    self.app.log_message(sm.session_id, rmsgid + ' ' + rtext, False)
 
-                        sm.kick(rtext)
-                        response = TaskManager.build_send_str(sm.node, sm.msgid)
-                        self.log.debug('and response = %s' % response)
+                    sm.kick(rtext)
+                    response = TaskManager.build_send_str(sm.node, sm.msgid)
+                    self.log.debug('and response = %s' % response)
 
-                        # support cens gui
-                        # log reply
-                        self.app.log_message(sm.session_id, response, True)
+                    # support cens gui
+                    # log reply
+                    self.app.log_message(sm.session_id, response, True)
                     # already found and processed, so leave
                     break
 
