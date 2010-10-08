@@ -4,16 +4,23 @@
 from taskmanager.models import *
 import json
 
-def schedule(d):
-    print 'in taskscheduler.schedule():'
-    session = Session.objects.get(pk=d['session_id'])
-    print 'session: %s', session
-    nt = ScheduledTask(
-        patient = Patient.objects.get(address=d['user']),
-        task = Task.objects.get(name=d['task']),
-        process = session.process,
-        arguments = json.dumps(d['args']),
-        schedule_date = d['schedule_date']
-    )
-    print 'nt: %s' % (nt)
-    nt.save()        
+from datetime import datetime
+
+def schedule(newtask):
+    try:
+        print 'in taskscheduler.schedule():'
+        session = Session.objects.get(pk=newtask['session_id'])
+        print 'session: %s', session
+        nt = ScheduledTask(
+            patient = Patient.objects.get(address=newtask['user']),
+            task = Task.objects.get(name=newtask['task']),
+            process = session.process,
+            arguments = json.dumps(newtask['args']),
+            schedule_date = datetime.strptime(newtask['schedule_date'], "%Y-%m-%dT%H:%M:%S")
+        )
+        print 'nt: %s' % (nt)
+        nt.save()
+        print 'saved nt'
+    except Exception as e:
+        print 'problem scheduling newtask: %s' % (e)
+        raise
