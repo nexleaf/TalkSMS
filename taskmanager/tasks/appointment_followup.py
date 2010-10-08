@@ -3,6 +3,7 @@
 import sms
 
 from datetime import datetime, timedelta
+from parsedatetime import parsedatetime
 import json, re
 
 from django.template.loader import render_to_string
@@ -26,8 +27,9 @@ class AppointmentFollowup(object):
         # resolves to:
         # How was your {{ args.appt_type }}? Reply with 'comment' and feedback; or a time (10/1/2020 16:30:00) to reschedule.
         q1 = render_to_string('tasks/appts/request.html', {'patient': self.patient, 'args': self.args})
-        r1 = sms.Response('comment', r'comment|COMMENT', label='comment', callback=self.store_feedback)
-        r2 = sms.Response('8/30/2010 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.reschedule_reminder)
+        r1 = sms.Response('comment', match_regex=r'comment|COMMENT', label='comment', callback=self.store_feedback)
+        #r2 = sms.Response('8/30/2010 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.reschedule_reminder)
+        r2 = sms.Response('8/30/2010 16:30:00', match_callback=AppointmentFollowup.match_date, label='datetime', callback=self.reschedule_reminder)
         m1 = sms.Message(q1, [r1,r2])
 
         # m2
@@ -43,8 +45,16 @@ class AppointmentFollowup(object):
                        m3: [] }
 
         self.interaction = sms.Interaction(self.graph, m1, self.__class__.__name__ + '_interaction')
-
-
+    
+    @staticmethod
+    def match_date(msgtxt):
+        pdt = parsedatetime.Calendar()
+        (res, retcode) = pdt.parse(msgtxt)
+        if retcode == 0:
+            return False
+        else:
+            return res
+    
     def store_feedback(self, *args, **kwargs):
         comment = kwargs['response']
         session_id = kwargs['session_id']
@@ -66,7 +76,14 @@ class AppointmentFollowup(object):
         print 'args: %s kwargs: %s' % (args, kwargs)
         print 'self.args: %s' % (self.args)
 
-        t = datetime.strptime(ndatetime, "%m/%d/%Y %H:%M:%S")
+        pdt = parsedatetime.Calendar()
+        (res, retval) = pdt.parse(ndatetime)
+        if retval == 0:
+            raise ValueError("Unable to parse date time: %s" % (ndatetime))
+        # get the first 6 values from teh stuct... the rest we do not care about
+        t = datetime(*res[0:7])
+
+        #t = datetime.strptime(ndatetime, "%m/%d/%Y %H:%M:%S")
 
         appttime = t.isoformat()
         # make sure we pass on the appointment date

@@ -18,6 +18,7 @@ import json, re
 
 from django.template.loader import render_to_string
 from taskmanager.models import *
+from parsedatetime import parsedatetime
 import taskscheduler
 
 class AppointmentRequest(object):
@@ -39,8 +40,9 @@ class AppointmentRequest(object):
         # Hi {{ patient.first_name }}. Please schedule a {{ args.appt_type }}. 
         # Reply with a time (like 10/1/2012 16:30:00), or 'stop' to quit. 
         q1 = render_to_string('tasks/appts/request.html', {'patient': self.patient, 'args': self.args})
-        r1 = sms.Response('stop', r'stop|STOP', label='stop', callback=self.appointment_cancelled_alert)
-        r2 = sms.Response('8/30/2012 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.schedule_reminders)
+        r1 = sms.Response('stop', match_regex=r'stop|STOP', label='stop', callback=self.appointment_cancelled_alert)
+        #r2 = sms.Response('8/30/2012 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.schedule_reminders)
+        r2 = sms.Response('8/30/2012 16:30:00', match_callback=AppointmentRequest.match_date, label='datetime', callback=self.schedule_reminders)
         m1 = sms.Message(q1, [r1,r2])
         # m2
         q2 = 'Ok, stopping messages now. Thank you for participating.'
@@ -57,7 +59,17 @@ class AppointmentRequest(object):
 
         self.interaction = sms.Interaction(self.graph, m1, self.__class__.__name__ + '_interaction')
 
-
+    
+    @staticmethod
+    def match_date(msgtxt):
+        pdt = parsedatetime.Calendar()
+        (res, retcode) = pdt.parse(msgtxt)
+        if retcode == 0:
+            return False
+        else:
+            return res
+            
+    
     def appointment_cancelled_alert(self, *args, **kwargs):
         response = kwargs['response']
         session_id = kwargs['session_id']
@@ -77,7 +89,13 @@ class AppointmentRequest(object):
         print 'in %s: user responsed with date: %s' % (self.__class__, kwargs['response'])
         print 'args: %s kwargs: %s' % (args, kwargs)
         print 'self.args: %s' % (self.args)
-        t = datetime.strptime(ndatetime, "%m/%d/%Y %H:%M:%S")
+        pdt = parsedatetime.Calendar()
+        (res, retval) = pdt.parse(ndatetime)
+        if retval == 0:
+            raise ValueError("Unable to parse date time: %s" % (ndatetime))
+        # get the first 6 values from teh stuct... the rest we do not care about
+        t = datetime(*res[0:7])
+        #t = datetime.strptime(ndatetime, "%m/%d/%Y %H:%M:%S")
         s = timedelta(days=1)
         i = timedelta(microseconds=1)
 
@@ -96,6 +114,8 @@ class AppointmentRequest(object):
             f = t+4*s  # follow sent 1 hour after
         else: 
             # actually, -3, -2, -1 days for reminders; +1 day for followup
+            # NOTE: If we are one or two days before appointment, need to do the right thing here
+            # so they do not get too many reminders
             a = t-3*s  # two days before
             b = t-2*s  # one night before
             c = t-s+i  # morning of appointment

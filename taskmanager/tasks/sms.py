@@ -7,11 +7,20 @@ import itertools
 
 class Response(object):
 
-    def __init__(self, text, regex, label='', callback=None, *args, **kwargs):
-        if not re.compile(regex).match(text):
-            raise ValueError('Response.regex must re.match() Response.text')
+    def __init__(self, text, match_regex=None, match_callback=None, label='', callback=None, *args, **kwargs):
+        if match_regex is None and match_callback is None:
+            raise ValueError('Response.match_regex OR Response.match_callback must be set')
+        self.match_callback = None
+        self.match_regex = None
+        if match_callback is not None:
+            if not match_callback(text):
+                raise ValueError('Respones.match_vallback must not return None or False for Response.text')
+            self.match_callback = match_callback
+        if match_regex is not None:
+            if not re.compile(match_regex).match(text):
+                raise ValueError('Response.match_regex must re.match() Response.text')
+            self.match_regex = re.compile(match_regex)
         self.text = text
-        self.regex = re.compile(regex)
         self.label = label
         if callback:
             self.callback = callback
@@ -20,7 +29,11 @@ class Response(object):
 
     def match(self, sometext):
         'return None if there is no match, and the MatchObject otherwise'
-        return self.regex.match(sometext)
+        if self.match_callback is not None:
+            return self.match_callback(sometext)
+        if self.match_regex is not None:
+            return self.match_regex.match(sometext)
+        raise UnboundLocalError('No match regex or callback set.')
 
     def __str__(self):
         return '%s:%s' % (self.__class__.__name__, (self.label if self.label else repr(self) ))
@@ -243,7 +256,7 @@ class StateMachine(object):
 
               self.log.debug('found response match')
               # find index for the match
-              i = [m is not None for m in matches].index(True)
+              i = [m is not None and m is not False for m in matches].index(True)
               response = self.node.responselist[i]
  
               # advance to the next node
