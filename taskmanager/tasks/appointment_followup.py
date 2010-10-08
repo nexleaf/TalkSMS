@@ -93,7 +93,8 @@ class AppointmentFollowup(object):
         print 'self.args: %s' % (self.args)        
 
         # sched a reminder. 
-        d1 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': t.isoformat,'session_id': session_id}
+        d1 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': t,'session_id': session_id}
+        #d1 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': t.isoformat,'session_id': session_id}
 
         try:
             taskscheduler.schedule(d1)

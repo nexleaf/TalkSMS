@@ -89,12 +89,14 @@ class AppointmentRequest(object):
         print 'in %s: user responsed with date: %s' % (self.__class__, kwargs['response'])
         print 'args: %s kwargs: %s' % (args, kwargs)
         print 'self.args: %s' % (self.args)
+        
         pdt = parsedatetime.Calendar()
         (res, retval) = pdt.parse(ndatetime)
         if retval == 0:
             raise ValueError("Unable to parse date time: %s" % (ndatetime))
-        # get the first 6 values from teh stuct... the rest we do not care about
+        # get the first 6 values from the stuct... the rest we do not care about
         t = datetime(*res[0:7])
+        
         #t = datetime.strptime(ndatetime, "%m/%d/%Y %H:%M:%S")
         s = timedelta(days=1)
         i = timedelta(microseconds=1)
@@ -104,8 +106,8 @@ class AppointmentRequest(object):
         appttime = t.strftime("%A %I:%M%p, %B %d, %Y")
         # make sure we pass on the appointment date
         self.args['appt_date'] = appttime
-        print 'self.args: %s' % (self.args)        
-
+        print 'self.args: %s' % (self.args)
+        
         testing = True
         if testing:
             # easier to track msgs
@@ -126,11 +128,11 @@ class AppointmentRequest(object):
         # if 'schedule_date' is earlier than now, the scheduled event will be sent immediately
 
         # sched 3 reminders. 
-        d1 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': a.isoformat(),'session_id': session_id}
-        d2 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': b.isoformat(),'session_id': session_id}
-        d3 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': c.isoformat(),'session_id': session_id}
+        d1 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': a,'session_id': session_id}
+        d2 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': b,'session_id': session_id}
+        d3 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': c,'session_id': session_id}
         # sched followup
-        d4 = {'task': 'Appointment Followup','user': self.user.identity,'args': self.args,'schedule_date': f.isoformat(),'session_id': session_id}
+        d4 = {'task': 'Appointment Followup','user': self.user.identity,'args': self.args,'schedule_date': f,'session_id': session_id}
 
         try:
             # reminders

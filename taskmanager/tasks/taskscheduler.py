@@ -16,7 +16,8 @@ def schedule(newtask):
             task = Task.objects.get(name=newtask['task']),
             process = session.process,
             arguments = json.dumps(newtask['args']),
-            schedule_date = datetime.strptime(newtask['schedule_date'], "%Y-%m-%dT%H:%M:%S")
+            #schedule_date = datetime.strptime(newtask['schedule_date'], "%Y-%m-%dT%H:%M:%S")
+            schedule_date = newtask['schedule_date']
         )
         print 'nt: %s' % (nt)
         nt.save()
