@@ -248,7 +248,7 @@ class StateMachine(object):
 
           # did the new response match anything in the responselist?
           matches = [r.match(rnew) for r in self.node.responselist]
-          matchcount = len(matches) - (matches.count(None) - matches.count(False))
+          matchcount = len(matches) - (matches.count(None) + matches.count(False))
           self.log.debug('matches: %s', matches)          
           self.log.debug('matchcount: %s', matchcount)          
 
