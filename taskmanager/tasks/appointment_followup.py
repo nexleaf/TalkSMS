@@ -26,7 +26,7 @@ class AppointmentFollowup(object):
         # m1
         # resolves to:
         # How was your {{ args.appt_type }}? Reply with 'comment' and feedback; or a time (10/1/2020 16:30:00) to reschedule.
-        q1 = render_to_string('tasks/appts/request.html', {'patient': self.patient, 'args': self.args})
+        q1 = render_to_string('tasks/appts/followup.html', {'patient': self.patient, 'args': self.args})
         r1 = sms.Response('comment', match_regex=r'comment|COMMENT', label='comment', callback=self.store_feedback)
         #r2 = sms.Response('8/30/2010 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.reschedule_reminder)
         r2 = sms.Response('8/30/2010 16:30:00', match_callback=AppointmentFollowup.match_date, label='datetime', callback=self.reschedule_reminder)
