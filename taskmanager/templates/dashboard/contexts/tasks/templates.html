@@ -2,23 +2,49 @@
 
 {% block section_scripts %}
 $(document).ready(function() {
-	// find each textbox and highlight the save button when it's changed
-	$(".arguments textarea").change(function() {
-		var $saveframe = $(this).closest(".template_holder").find(".commands");
-		$saveframe.find(".remember_save").fadeIn();
-
-		// disable the other save buttons on the form to prevent disaster?
-
-		// and make this sucka never fire again
-		$(this).unbind('change');
-	});
-
 	// bind up schedule form adder dialogs
 	$("#schedule_show_add_btn").click(function() {
 		var $dialog = $("#templates_add_dialog");
 		var $header = $("#templates_column .col_header");
 
 		toggleDialog($(this), $dialog, $header);
+	});
+
+	// also add a small function for showing/hiding the extra data field
+	$(".valuetype_selector").live('change', function() {
+		var $value_ext = $(this).closest('tr').find('.value_ext');
+
+		if ($(this).val() == '?Static' && $value_ext.is(':hidden')) {
+			$value_ext.fadeTo(0,0).slideDown(300).fadeTo(300,1);
+		}
+		else if ($value_ext.is(':visible')) {
+			$value_ext.fadeTo(300,0, function() {
+				$value_ext.slideUp(300);
+			});
+		}
+	});
+
+	$(".argsdict_remove").live('click', function() {
+		if (confirm('Are you sure that you wish to remove this entry?')) {
+			// find the parent row and remove the whole thing
+			$(this).closest('tr').fadeOut(function() {
+				$(this).remove();
+			});
+		}
+	});
+
+	$(".argsdict_add").click(function() {
+		// create a huge template for adding our stuff
+		var new_index = $(".sparse_list tr").length;
+
+		var arg_template = $("#new_argument_template").text().replace(/\[\[NEWINDEX\]\]/g, new_index);
+
+		var $new_elem = $(arg_template);
+		$new_elem.css('display', 'none');
+
+		$(".sparse_list #adder_row").before($new_elem);
+
+		$new_elem.fadeIn();
 	});
 });
 {% endblock %}
@@ -46,6 +72,18 @@ $(document).ready(function() {
 
 /* indicates that there's no valid value for this pane yet */
 .nodata { background: url('/static/taskmanager/images/diagonal-gray.png'); }
+
+/* style for the name:value pair list */
+.sparse_list td { padding: 5px; vertical-align: top; }
+.sparse_list .sparse_header td { font-weight: bold; }
+.sparse_list a { font-weight: bold; text-decoration: none; }
+.valuetype_selector { width: 200px; }
+.value_ext { margin-top: 5px; width: 200px;  }
+
+/* identify the <name>:<value> cells */
+.sparse_list .namecell { width: 200px; }
+.sparse_list .divcell { font-weight: bold; width: 0.5em; }
+.sparse_list .valuecell {}
 {% endblock %}
 
 {% block section_content %}
@@ -70,58 +108,64 @@ $(document).ready(function() {
 		</div>
 	</td>
 
-	<!--
-	<td id="templates_column" valign="top" class="column">
-		<div class="col_header">
-		Templates
-		</div>
-		<div class="template_holder">
-			{% if tasktemplates %}
-			<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_templates %}">{% csrf_token %}
-				{% for template in tasktemplates %}
-				<div class="template_entry">
-					<div class="template_header thing">{{ template.name }}</div>
-
-					<div class="arguments thing">
-						<textarea name="arguments__{{ template.id }}" style="width: 100%;">{{ template.arguments }}</textarea>
-					</div>
-				</div>
-				{% endfor %}
-
-				<div class="commands thing">
-					<span class="remember_save" style="display: none;">remember to save</span>
-
-					<input type="hidden" name="return_page" value="{{ current_page }}" />
-					<input type="submit" style="width: 150px;" value="save changes" />
-				</div>
-			</form>
-			{% else %}
-			This task has no templates and is thus not directly schedulable.
-			{% endif %}
-		</div>
-	</td>
-	-->
-
-
 	<td id="selected_template_column" valign="top" class="column {% if not selected_tasktemplateid %}nodata{% endif %}">
 		<div class="col_header">
 		Arguments
 		</div>
 
 		{% if selected_tasktemplateid %}
-		<div class="template_holder" style="padding: 10px;">
-			<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_templates %}">{% csrf_token %}
+		<div class="template_holder" style="padding: 10px; padding-top: 0px;">
+			<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_template %}">
+				{% csrf_token %}
+
 				<div class="template_entry" style="padding-right: 10px;">
+					<!--
 					<div class="template_header thing">{{ tasktemplate.name }}</div>
 
 					<div class="arguments thing">
-						<textarea name="arguments__{{ tasktemplate.id }}" style="width: 100%;">{{ tasktemplate.arguments }}</textarea>
+						<textarea name="arguments" style="width: 100%;">{{ tasktemplate.arguments }}</textarea>
 					</div>
+					-->
+
+					<table class="sparse_list" style="width: 100%;">
+						<tr class="sparse_header">
+							<td class="label">parameter</td>
+							<td class="label"></td>
+							<td class="label">value</td>
+						</tr>
+					{% for key, value in args_dict.items %}
+						<tr>
+							<td class="namecell">
+								<input type="text" name="__argsdict__{{ forloop.counter0 }}__label" value="{{ key }}" style="width: 100%;" />
+								<div style="text-align: left;">
+									<a href="#" class="argsdict_remove">- remove</a>
+								</div>
+							</td>
+							<td class="divcell">:</td>
+							<td class="valuecell">
+								<select class="valuetype_selector" name="__argsdict__{{ forloop.counter0 }}__value">
+									<option value="?Static">(static value, enter below)</option>
+									{% for vtype, vval in value_types.items %}
+									<option value="{{ vval }}" {% if vval == value %}selected="selected"{% endif %}>{{ vtype }}</option>
+									{% endfor %}
+								</select>
+
+								<textarea class="value_ext" name="__argsdict__{{ forloop.counter0 }}__value_ext" style="{% if value in value_types.values %}display: none;{% else %}display: block;{% endif %}">{% if value not in value_types.values %}{{ value }}{% endif %}</textarea>
+							</td>
+						</tr>
+					{% endfor %}
+						<tr id="adder_row">
+							<td colspan="3" style="border-top: dotted 1px gray;">
+								<a class="argsdict_add" href="#">+ add argument</a>
+							</td>
+						</tr>
+					</table>
 				</div>
 
 				<div class="commands thing">
 					<span class="remember_save" style="display: none;">remember to save</span>
 
+					<input type="hidden" name="editing_tasktemplateid" value="{{ tasktemplate.id }}" />
 					<input type="hidden" name="return_page" value="{{ current_page }}" />
 					<input type="submit" style="width: 150px;" value="save changes" />
 				</div>
@@ -134,10 +178,11 @@ $(document).ready(function() {
 </table>
 {% endblock %}
 
-
 {% block section_divs %}
 <div id="templates_add_dialog" class="column_dialog">
-	<form id="tasktemplate_form" action="{% url taskmanager.subviews.contexts.tasks.add_tasktemplate %}" method="POST">{% csrf_token %}
+	<form id="tasktemplate_form" action="{% url taskmanager.subviews.contexts.tasks.add_tasktemplate %}" method="POST">
+		{% csrf_token %}
+
 		<div style="font-weight: bold; font-family: Verdana, sans-serif; font-size: 22px; margin-bottom: 0.5em;">
 		Add a Template
 		</div>
@@ -160,6 +205,27 @@ $(document).ready(function() {
 		</table>
 	</form>
 </div>
+
+<!-- this isn't exactly a div, but it's still weird so i'm going to stick it here -->
+<textarea id="new_argument_template" style="display: none;">
+	<tr>
+		<td class="namecell">
+			<input type="text" name="__argsdict__[[NEWINDEX]]__label" style="width: 100%;" />
+			<div style="text-align: left;">
+				<a href="#" class="argsdict_remove">- remove</a>
+			</div>
+		</td>
+		<td class="divcell">:</td>
+		<td class="valuecell">
+			<select class="valuetype_selector" name="__argsdict__[[NEWINDEX]]__value">
+				<option value="?Static">(static value, enter below)</option>
+				{% for vtype, vval in value_types.items %}
+					<option value="{{ vval }}" {% if vval == value %}selected="selected"{% endif %}>{{ vtype }}</option>
+				{% endfor %}
+			</select>
+
+			<textarea class="value_ext" name="__argsdict__[[NEWINDEX]]__value_ext" style="display: block;" />
+		</td>
+	</tr>
+</textarea>
 {% endblock %}
-
-

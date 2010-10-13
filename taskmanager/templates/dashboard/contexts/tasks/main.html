@@ -87,7 +87,9 @@ $(document).ready(function() {
 
 {% block context_divs %}
 	<div id="patient_add_dialog" class="column_dialog">
-		<form id="patient_form" action="{% url taskmanager.subviews.contexts.patients.add_patient %}" method="POST">{% csrf_token %}
+		<form id="patient_form" action="{% url taskmanager.subviews.contexts.patients.add_patient %}" method="POST">
+			{% csrf_token %}
+
 			<div style="font-weight: bold; font-family: Verdana, sans-serif; font-size: 22px; margin-bottom: 0.5em;">Add a Patient</div>
 
 			<input type="hidden" name="return_page" value="{{ current_page }}" />

@@ -41,7 +41,7 @@ urlpatterns = patterns('',
                        
     # tasks context: POST targets
     (r'^taskmanager/tasks/templates/add/?$', contexts_tasks.add_tasktemplate),
-    (r'^taskmanager/tasks/templates/update/?$', contexts_tasks.update_templates),
+    (r'^taskmanager/tasks/templates/update/?$', contexts_tasks.update_template),
     (r'^taskmanager/tasks/messages/update/?$', contexts_tasks.update_messages),
 
     # ================================

@@ -32,7 +32,7 @@
 	-webkit-border-radius: 5px 0px 0px 5px;
 	border-radius: 5px 0px 0px 5px;
 }
-.alert_body { }
+.alert_body { padding-right: 45px; }
 .alert_url {
 	background-image: url('/static/taskmanager/fugue/bonus/icons-24/chain.png');
 	background-repeat: no-repeat;
@@ -119,6 +119,8 @@
 
 				<div style="float: left; width: 20%;">
 					<form method="POST" action="{% url taskmanager.subviews.contexts.monitor.mark_alerts_reviewed %}">
+						{% csrf_token %}
+
 						<input type="hidden" name="return_page" value="{{ current_page }}" />
 						<input type="hidden" name="serviceid" value="{{ selected_serviceid }}" />
 						<input type="submit" value="Mark All Reviewed" style="width: 100%;" />

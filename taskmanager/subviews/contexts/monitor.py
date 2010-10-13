@@ -38,9 +38,16 @@ def status(request, serviceid):
         'section': 'status',
         'service': Service.objects.get(pk=serviceid)
         }
+
+    # figure out which specific template to use to render the status page
+    # if no custom template for this service exists, use the default template (i.e. 'no status for this service' page)
+    target_page = {
+        'Task Manager': 'dashboard/contexts/monitor/status_taskmanager.html',
+        'Scheduler': 'dashboard/contexts/monitor/status_scheduler.html'
+        }.get(field_vars['service'].name, 'dashboard/contexts/monitor/status.html')
     
     merge_contextuals(field_vars, request, serviceid)
-    return render_to_response('dashboard/contexts/monitor/status.html', field_vars, context_instance=RequestContext(request))
+    return render_to_response(target_page, field_vars, context_instance=RequestContext(request))
 
 @csrf_protect
 @login_required

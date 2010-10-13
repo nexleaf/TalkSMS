@@ -1,5 +1,33 @@
 {% extends "dashboard/contexts/patients/main.html" %}
 
+{% block section_styles %}
+.selected_item {
+	border: solid 3px #5FB5EF;
+	background-image: url('/static/taskmanager/images/caret.png');
+	background-repeat: no-repeat; background-position: center right;
+}
+{% endblock %}
+
+{% block section_scripts %}
+$(document).ready(function() {
+	// highlight the hash tag
+	function highlight(elemId){
+		var $elem = $(elemId).closest(".history_item");
+
+		if ($elem.length > 0) {
+			$elem.addClass("selected_item");
+		} else {
+			// display some kind of notification that the object doesn't exist
+			alert("ERROR: linked object no longer exists (the task may have been deleted)");
+		}
+	}
+
+	if (document.location.hash) {
+		highlight(document.location.hash);
+	}
+});
+{% endblock %}
+
 {% block section_content %}
 <table cellpadding="0" cellspacing="0" class="history_view_table" style="min-height: 300px; width: 100%; height: 100%; border: solid 1px gray;">
 	<tr>
@@ -35,7 +63,7 @@
 						{% for session in process.get_sessions %}
 						<div class="history_item {{ session.get_status }}_light">
 							<div class="history_session_header">
-								<a name="session_{{ session.id }}" href="/taskmanager/sessions/{{ session.id }}/details/" class="history_task_link" rel="facebox">
+								<a id="session_{{ session.id }}" name="session_{{ session.id }}" href="/taskmanager/sessions/{{ session.id }}/details/" class="history_task_link" rel="facebox">
 									<b>{{ session.task.name }}</b>
 									<span class="history_session_date">ran on {{ session.add_date|date }}, {{ session.add_date|time }}</span>
 								</a>

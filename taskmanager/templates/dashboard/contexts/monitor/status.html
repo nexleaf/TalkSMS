@@ -1,6 +1,11 @@
 {% extends "dashboard/contexts/monitor/main.html" %}
 
 {% block section_styles %}
+	{% block status_styles %}{% endblock %}
+{% endblock %}
+
+{% block section_scripts %}
+	{% block status_scripts %}{% endblock %}
 {% endblock %}
 
 {% block section_content %}
@@ -13,7 +18,9 @@
 		</div>
 
 		<div style="padding: 10px;">
-
+			{% block status_content %}
+			<div style="font-size: 18px; color: #777;">(this service has no associated status information)</div>
+			{% endblock %}
 		</div>
 	</td>
 

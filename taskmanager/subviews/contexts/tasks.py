@@ -42,6 +42,13 @@ def templates(request, taskid, tasktemplateid=None):
     if tasktemplateid:
         field_vars['selected_tasktemplateid'] = tasktemplateid
         field_vars['tasktemplate'] = TaskTemplate.objects.get(pk=tasktemplateid)
+        field_vars['value_types'] = {'checkbox': '?CheckboxInput', 'textbox': '?TextInput'}
+
+        # attempt to decode json data if present...if not, just bleh it out
+        try:
+            field_vars['args_dict'] = json.loads(field_vars['tasktemplate'].arguments)
+        except:
+            field_vars['args_dict'] = {}
     
     merge_contextuals(field_vars, request, taskid)
     return render_to_response('dashboard/contexts/tasks/templates.html', field_vars, context_instance=RequestContext(request))
@@ -92,14 +99,28 @@ def add_tasktemplate(request):
 
 
 @login_required
-def update_templates(request):
+def update_template(request):
     if request.method == 'POST':
-        # iterate through all of the elements in the POST that start with "arguments__"
-        # i know it's crazy, but my brain needed a little puzzle...it shouldn't be any less efficient than doing it manually
-        for (id,value) in [(int(i.split("__")[1]), request.POST[i]) for i in request.POST if i.startswith("arguments__")]:
-            obj = TaskTemplate.objects.get(pk=id)
-            obj.arguments = value
-            obj.save()
+        obj = TaskTemplate.objects.get(pk=request.POST['editing_tasktemplateid'])
+
+        # we have a variable number of fields here
+        # first we need to collect all the associated fields
+        # then we need to create an arguments structure, serialize it to JSON, then stuff it into the template
+        args_dict = {}
+        
+        for (idx,param,value) in [(int(i.split("__")[2]), i.split("__")[3], request.POST[i]) for i in request.POST if i.startswith("__argsdict__")]:
+            if idx not in args_dict: args_dict[idx] = {}
+            args_dict[idx][param] = value
+
+        final_dict = {}
+        for i in args_dict:
+            if args_dict[i]["value"] != "?Static":
+                final_dict[args_dict[i]["label"]] = args_dict[i]["value"]
+            else:
+                final_dict[args_dict[i]["label"]] = args_dict[i]["value_ext"]
+            
+        obj.arguments = json.dumps(final_dict, sort_keys=True)
+        obj.save()
 
         # return HttpResponseRedirect(reverse('taskmanager.views.scheduler'))
         # we redirect them to the patient's new process page

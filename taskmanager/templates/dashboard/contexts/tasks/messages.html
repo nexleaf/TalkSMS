@@ -1,5 +1,7 @@
 {% extends "dashboard/contexts/tasks/main.html" %}
 
+{% load parse_json %}
+
 {% block section_scripts %}
 $(document).ready(function() {
 	// find each textbox and highlight the save button when it's changed
@@ -53,9 +55,12 @@ $(document).ready(function() {
 		<div class="col_header">
 		Messages
 		</div>
+
 		<div class="template_holder" style="padding: 10px; padding-top: 0px;">
 			{% if templates %}
-			<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_messages %}">{% csrf_token %}
+			<form method="POST" action="{% url taskmanager.subviews.contexts.tasks.update_messages %}">
+				{% csrf_token %}
+
 				{% for template in templates %}
 				<div class="template_entry" style="padding: 5px;">
 					<div class="template_header thing">{{ template.name }}</div>
@@ -74,7 +79,9 @@ $(document).ready(function() {
 				</div>
 			</form>
 			{% else %}
-			This task has no associated messages.
+			<div style="font-size: 18px; color: #777; padding-top: 10px;">
+			(this task has no associated messages)
+			</div>
 			{% endif %}
 		</div>
 	</td>
