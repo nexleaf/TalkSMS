@@ -1,0 +1,107 @@
+{% extends "dashboard/contexts/monitor/status.html" %}
+
+{% block status_styles %}
+h2.my_h2 { margin: 0px; margin-bottom: 1em; }
+
+.dispatch_entry {
+	margin-bottom: 1em;
+}
+
+.dispatch_entry td { padding-right: 5px; padding-bottom: 5px; }
+
+.dispatch_header {
+	font-size: 14px; margin-bottom: 10px;
+}
+
+.dispatch_body {
+	padding: 10px; background: #eee;
+	-moz-border-radius: 5px;
+	-webkit-border-radius: 5px;
+	border-radius: 5px;
+}
+
+.dispatch_label {
+	font-weight: bold;
+	vertical-align: top; text-align: right;
+}
+{% endblock %}
+
+{% block status_scripts %}
+$(document).ready(function() {
+	// utility function for prettyprinting json collections
+	function recurseJSONPrint(record) {
+		out = "<table cellpadding=\"0\" cellspacing=\"0\">";
+		for (key in record) {
+			out += "<tr>";
+			out += "<td class=\"dispatch_label\">" + key + ":</td>";
+
+			if (record[key] instanceof Object)
+				out += "<td class=\"dispatch_value\">" + recurseJSONPrint(record[key]) + "</td>"
+			else
+				out += "<td class=\"dispatch_value\">" + record[key] + "</td>";
+
+			out += "</tr>";
+		}
+		out += "</table>";
+
+		return out;
+	}
+
+	function refreshDispatch() {
+		// show the spinner image
+		$("#spinner_img").css('display','');
+
+		// send an AJAX request to the taskmanager for its runtime machine dispatch table
+		$.ajax({
+		  url: '/proxy/' + encodeURIComponent('http://localhost:8001/taskmanager/status'),
+		  dataType: 'json',
+		  success: function(data) {
+		  	out = "<h2 class=\"my_h2\">Task Manager: <span style=\"display: inline-block; width: 150px;\" class=\"task_status running\">running</span></h2>";
+
+			if (data.length > 0) {
+				// show all the entries in the dispatch table
+				for (i in data) {
+					var record = data[i];
+
+					out += "<div class=\"dispatch_entry\">";
+					out += "<div class=\"dispatch_header\">dispatch entry for <b>" + record.address + "</b></div>";
+
+					out += "<div class=\"dispatch_body\">" + recurseJSONPrint(record) + "</div>";
+
+					out += "</div>";
+				}
+			} else {
+				// the dispatch table is empty, sadly
+				out += "<div style=\"padding: 0px 0px 10px 0px; color: #555;\">(there are no entries in the dispatch table)</div>";
+			}
+
+			$('#taskmanager_dispatch').html(out);
+
+			// hide the spinner since we're done
+			$("#spinner_img").fadeOut(600);
+		  },
+		  error: function() {
+			$('#taskmanager_dispatch').html('<h2 class=\"my_h2\">Task Manager: <span style=\"display: inline-block; width: 150px;\" class=\"task_status due\">not running</span></h2>');
+
+			// hide the spinner since we're done
+			$("#spinner_img").fadeOut(600);
+		  }
+		});
+	}
+
+	// run it once to populate the view at first
+	refreshDispatch();
+
+	// then associate the same function with this button so we can refresh manually
+	$("#refresh_dispatch_btn").click(refreshDispatch);
+});
+{% endblock %}
+
+{% block status_content %}
+	<div id="taskmanager_dispatch">
+
+	</div>
+
+	<input type="button" id="refresh_dispatch_btn" value="refresh dispatch" />
+	<img id="spinner_img" src="/static/taskmanager/images/ajax-loader-arrows.gif" style="vertical-align: middle; display: none;" />
+{% endblock %}
