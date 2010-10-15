@@ -34,7 +34,6 @@ class AppointmentRequest(object):
         else:
             raise ValueError('unknown type given for user: %s' % user)
 
-
         # m1
         # resolves to: 
         # Hi {{ patient.first_name }}. Please schedule a {{ args.appt_type }}. 
@@ -60,6 +59,23 @@ class AppointmentRequest(object):
         self.interaction = sms.Interaction(self.graph, m1, self.__class__.__name__ + '_interaction')
 
     
+
+    # developer defines this fn to specify what to save.
+    # we save (most of) the stuff above, so what does the developer require in the functions below
+    # 
+    # self.args
+    # ...
+    #
+    def save(self):
+        # just need to save self.args; need to turn it into a json string
+
+        # parameter blob
+        pb = {}
+        pb['args'] = json.dumps(self.args)
+
+        # return a dictionare of json'ed attributes
+        return pb
+
     @staticmethod
     def match_date(msgtxt):
         pdt = parsedatetime.Calendar()

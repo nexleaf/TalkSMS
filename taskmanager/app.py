@@ -212,6 +212,19 @@ class App(rapidsms.apps.base.AppBase):
         return {'status': 'OK'}
 
 
+
+    def system_restart(self, *args, **kwargs):
+        # find things prev stored: task, <user>, args, and where we left off (currentnode)..?.
+        # instantiate task(<user>, args) :
+        # reset to where it was...restore: msgid, currentnode(using unique label), sentcount
+        # <start up>: return not-done sm to TaskManager.uism.
+
+        # details: what's the expected msgid?
+        
+
+    def sync_ourstatetothedb_fn():
+        # 
+
     def ajax_POST_timeout(self, getargs, postargs=None):
         patient = Patient.objects.get(pk=postargs['patient'])
         session = Session.objects.get(pk=postargs['session'])
