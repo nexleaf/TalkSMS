@@ -21,7 +21,12 @@ class Response(object):
                 raise ValueError('Response.match_regex must re.match() Response.text')
             self.match_regex = re.compile(match_regex)
         self.text = text
+
+
+        if not label:
+            raise ValueError('Response requires a unique label string.')
         self.label = label
+        
         if callback:
             self.callback = callback
             self.args = args
@@ -45,7 +50,11 @@ class Message(object):
         self.question = question
         self.responselist = responselist
         self.autoresend = autoresend
+
+        if not label:
+            raise ValueError('Response requires a unique label string.')
         self.label = label
+        
         self.sentcount = 0
 
     def __str__(self):
@@ -60,10 +69,14 @@ class Interaction(object):
 
         Interaction.isvalid(graph, initialnode)
 
-        if label is None:
+        if label:
             self.label = self.__class__.__name__
         else:
             self.label = label
+        if not label:
+            raise ValueError('Response requires a unique label string.')
+        self.label = label
+            
         self.initialnode = initialnode
         self.graph = graph
 
@@ -142,6 +155,10 @@ class User(object):
             self.label = self.__class__.__name__
         else:
             self.label = label
+
+        if not label:
+            raise ValueError('Response requires a unique label string.')
+        self.label = label
 
         # possible memory hog when msgid is large
         self.msgid = itertools.cycle(range(User.MAXMSGID+1))

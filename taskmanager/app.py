@@ -10,7 +10,7 @@ import tasks.appointment_reminder
 import tasks.appointment_followup
 
 from taskmanager.models import *
-
+from taskmanager.tasks.models import SerializedTasks
 
 class App(rapidsms.apps.base.AppBase):
 
@@ -26,6 +26,10 @@ class App(rapidsms.apps.base.AppBase):
         self.tm = sms.TaskManager(self)
         self.tm.run()
         self.debug('app.Taskmanager start time: %s', datetime.now())
+
+        # restore serialized tasks, if any
+        self.system_restore()
+        self.debug('app.Taskmanager finished system_restore(), time: %s', datetime.now())
 
 
     def handle (self, message):
@@ -184,9 +188,11 @@ class App(rapidsms.apps.base.AppBase):
             process = Process.objects.get(pk=postargs['process'])
         else:
             process = None
+
+        self.debug('in app.ajax_POST_exec(): found process: %s', process)
         
         print 'printing args: %s; type: %s' % (args, type(args))
-
+ 
         # returns existing user, otherwise returns a new user 
         smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
 
@@ -200,9 +206,16 @@ class App(rapidsms.apps.base.AppBase):
         else:
             t = eval(module)(smsuser, args)
 
+        print '%s: dir(t): %s' % (20*'#', dir(t))
+        print '%s: inspect.getmemebers(t): %s' % (20*'#', inspect.getmembers(t))
+
         # create a new session in db (sessions are only killed when statemachines are done)
         session = Session(patient=patient, task=task, process=process, state='initializing')
         session.save()
+        # create a new SerializedTask ...
+        # st = SerializedTask()
+        # hmm...maybe i want SerializedTask in the main db.
+        # it would be nice to access session, instead of replicating it in a completely different db.
 
         # create and start task
         sm = sms.StateMachine(self, smsuser, t.interaction, session.id)
@@ -213,17 +226,45 @@ class App(rapidsms.apps.base.AppBase):
 
 
 
-    def system_restart(self, *args, **kwargs):
+    def system_restore(self, *args, **kwargs):
         # find things prev stored: task, <user>, args, and where we left off (currentnode)..?.
-        # instantiate task(<user>, args) :
-        # reset to where it was...restore: msgid, currentnode(using unique label), sentcount
-        # <start up>: return not-done sm to TaskManager.uism.
+        serializedtasks = SerializedTasks.objects.all()
+        
+        for st in serializedtasks:
+            # ____:instantiate task(<user>, args) as in ajax_POST_exec():
+            
+            smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
+            __import__(task.module, globals(), locals(), [task.className])   
+            module = '%s.%s' % (task.module, task.className)
+            print module
+            print type(module)
+            if not args:
+                t = eval(module)(smsuser)
+            else:
+                t = eval(module)(smsuser, args)
 
+
+            session = Session(patient=patient, task=task, process=process, state='initializing')
+            session.save()
+
+            sm = sms.StateMachine(self, smsuser, t.interaction, session.id)
+            # reset to where it was (call sync()) which restores: msgid, currentnode(using unique label), sentcount...
+            # sm.restore() OR
+            for each object in t:
+                object.restore()
+                #how do i get the list of objects? use inspect, dir()...details?
+                    
+            # <start up>: return not-done sm to TaskManager.uism.
+            self.tm.addstatemachines(sm)
+            # ____
+        
+        
+        #___
         # details: what's the expected msgid?
         
 
-    def sync_ourstatetothedb_fn():
-        # 
+    def sync():
+        # calls .restore() for each sms object sent 
 
     def ajax_POST_timeout(self, getargs, postargs=None):
         patient = Patient.objects.get(pk=postargs['patient'])

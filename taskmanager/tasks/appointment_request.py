@@ -11,6 +11,7 @@
 #    * (future) authorship also becomes a possiblity since it would be easier to have a 
 #      task set-up from the gui...
 
+
 import sms
 
 from datetime import datetime, timedelta
@@ -42,21 +43,21 @@ class AppointmentRequest(object):
         r1 = sms.Response('stop', match_regex=r'stop|STOP', label='stop', callback=self.appointment_cancelled_alert)
         #r2 = sms.Response('8/30/2012 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.schedule_reminders)
         r2 = sms.Response('8/30/2012 16:30:00', match_callback=AppointmentRequest.match_date, label='datetime', callback=self.schedule_reminders)
-        m1 = sms.Message(q1, [r1,r2])
+        m1 = sms.Message(q1, [r1,r2], label='m1')
         # m2
         q2 = 'Ok, stopping messages now. Thank you for participating.'
-        m2 = sms.Message(q2, [])
+        m2 = sms.Message(q2, [], label='m2')
         # m3
         # resolves to:
         # Great, we set up 3 appt. reminders and a followup for you.
         q3 = render_to_string('tasks/appts/rescheduled.html', {'args': self.args})
-        m3 = sms.Message(q3, [])
+        m3 = sms.Message(q3, [], label='m3')
         
         self.graph = { m1: [m2, m3],
                        m2: [],
                        m3: [] }
 
-        self.interaction = sms.Interaction(self.graph, m1, self.__class__.__name__ + '_interaction')
+        self.interaction = sms.Interaction(graph=self.graph, initialnode=m1, label='interaction')
 
     
 
@@ -73,7 +74,7 @@ class AppointmentRequest(object):
         pb = {}
         pb['args'] = json.dumps(self.args)
 
-        # return a dictionare of json'ed attributes
+        # return a dictionary of json'd attributes
         return pb
 
     @staticmethod
