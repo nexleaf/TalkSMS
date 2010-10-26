@@ -120,11 +120,16 @@ def mark_alerts_reviewed(request):
     if request.method == 'POST':
         serviceid = request.POST['serviceid']
 
+        print "Alerts marked"
+
         # check if the alerts_reviewed_on dict already exists and create it if not
         if 'alerts_reviewed_on' not in request.session:
             request.session['alerts_reviewed_on'] = {serviceid: datetime.now()}
         else:
             request.session['alerts_reviewed_on'][serviceid] = datetime.now()
+
+        # fixed a little gotcha where the session isn't saved if you alter a nested object
+        request.session.modified = True
 
         return HttpResponseRedirect(request.POST['return_page'])
         

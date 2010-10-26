@@ -34,7 +34,6 @@ class AppointmentRequest(object):
         else:
             raise ValueError('unknown type given for user: %s' % user)
 
-
         # m1
         # resolves to: 
         # Hi {{ patient.first_name }}. Please schedule a {{ args.appt_type }}. 
@@ -50,7 +49,7 @@ class AppointmentRequest(object):
         # m3
         # resolves to:
         # Great, we set up 3 appt. reminders and a followup for you.
-        q3 = render_to_string('tasks/appts/rescheduled.html', {'args': self.args})
+        q3 = render_to_string('tasks/appts/response.html', {'args': self.args})
         m3 = sms.Message(q3, [])
         
         self.graph = { m1: [m2, m3],
@@ -108,38 +107,45 @@ class AppointmentRequest(object):
         self.args['appt_date'] = appttime
         print 'self.args: %s' % (self.args)
         
-        testing = True
+        testing = False
         if testing:
             # easier to track msgs
-            s = timedelta(seconds=900) # 15 minutes
-            a = t+s    # first reminder 15 minutes after datetime reply
-            b = t+2*s  # second is 30 minutes after
-            c = t+3*s  # third is 45 after
-            f = t+4*s  # follow sent 1 hour after
+            s = timedelta(seconds=300) # 5 minutes
+            a = t+s    # first reminder 5 minutes after datetime reply
+            b = t+2*s  # second is 10 minutes after
+            c = t+3*s  # third is 15 after
+            f = t+4*s  # follow sent 20 hour after
         else: 
             # actually, -3, -2, -1 days for reminders; +1 day for followup
             # NOTE: If we are one or two days before appointment, need to do the right thing here
             # so they do not get too many reminders
-            a = t-3*s  # two days before
-            b = t-2*s  # one night before
-            c = t-s+i  # morning of appointment
-            f = t+s+i  # followup, one day after...
+##          a = t-3*s  # two days before
+##          b = t-2*s  # one night before
+##          c = t-s+i  # morning of appointment
+##          f = t+s+i  # followup, one day after...
+
+            # faisal: commented out the above; we're going to use parsedatetime instead for readability
+            a = datetime(*pdt.parse("2 days ago", t)[0][0:7]) # two days before
+            b = datetime(*pdt.parse("1 day ago at 9:00pm", t)[0][0:7]) # one night before
+            c = datetime(*pdt.parse("at 8:00am", t)[0][0:7]) # morning of appointment
+            f = datetime(*pdt.parse("in 6 hours", t)[0][0:7]) # followup, six hours after
 
         # if 'schedule_date' is earlier than now, the scheduled event will be sent immediately
-
-        # sched 3 reminders. 
-        d1 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': a,'session_id': session_id}
-        d2 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': b,'session_id': session_id}
-        d3 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': c,'session_id': session_id}
-        # sched followup
-        d4 = {'task': 'Appointment Followup','user': self.user.identity,'args': self.args,'schedule_date': f,'session_id': session_id}
-
+        
         try:
-            # reminders
-            taskscheduler.schedule(d1)
-            taskscheduler.schedule(d2)
-            taskscheduler.schedule(d3)
+            # reminders (only schedule these if they're in the future)
+            if a > datetime.now():
+                d1 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': a,'session_id': session_id}
+                taskscheduler.schedule(d1)
+            if b > datetime.now():
+                d2 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': b,'session_id': session_id}
+                taskscheduler.schedule(d2)
+            if c > datetime.now():
+                d3 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': c,'session_id': session_id}
+                taskscheduler.schedule(d3)
+                
             # followup
+            d4 = {'task': 'Appointment Followup','user': self.user.identity,'args': self.args,'schedule_date': f,'session_id': session_id}
             taskscheduler.schedule(d4)
         except Exception as e:
             print '%s' % (e)

@@ -1,6 +1,23 @@
 body { margin: 0px; padding: 0px; }
 body, table { font-family: Tahoma, sans-serif; font-size: 12px; }
 
+/* alert HUD */
+.alert_HUD {
+	display: inline-block; padding: 3px; background: #FBE58D; font-size: 11px;
+	border-radius: 2px;
+	-moz-border-radius: 2px;
+	-webkit-border-radius: 2px;
+	margin-right: 6px;
+}
+
+.alert_HUD:hover {
+	background: #FDF1C3;
+}
+
+.alert_HUD a {
+	font-weight: bold; color: #594803; text-decoration: none;
+}
+
 /* tabs */
 .iconified_tab {
 	padding-right: 5px; margin-left: -6px; margin-bottom: -3px;

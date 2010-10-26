@@ -159,7 +159,7 @@ class StateMachine(object):
       # max number of times a message is sent when expecting a reply
       MAXSENTCOUNT = 3
       # time to resend a message in minutes
-      TIMEOUT = 10
+      TIMEOUT = 120
       
       def __init__(self, app, user, interaction, session_id, label=''):
           self.app = app

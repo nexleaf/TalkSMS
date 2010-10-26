@@ -1,3 +1,4 @@
+from django import template
 from django.template import Library
 from django.template import Template, Context
 from django.template.loader import render_to_string
@@ -24,3 +25,27 @@ def display_alert(alert,summary=False):
         return render_to_string('alerts/Alert.html', field_vars)
     except:
         return ""
+
+# =================================================
+# === alert HUD custom tag
+# =================================================
+
+@register.inclusion_tag("alerts/Alert_HUD.html", takes_context=True)
+def alert_HUD(context):
+    # get the task data collector service
+    service = Service.objects.get(name="Task Data Collector")
+    # if it doesn't exist, we can't do much
+    if service == None: return {}
+    # get the ID of the service, too
+    serviceid = service.id
+        
+    # grab list of pending alerts
+    request = context['request']
+    if 'alerts_reviewed_on' in request.session and serviceid in request.session['alerts_reviewed_on']:
+        # they've marked this service before, so only get the pending alerts for this one
+        pending_alerts = Alert.objects.filter(alert_type__service__id=serviceid, add_date__gte=request.session['alerts_reviewed_on'][serviceid])
+    else:
+        # if they've never marked their alerts read before, all alerts are pending
+        pending_alerts = Alert.objects.filter(alert_type__service__id=serviceid)
+    
+    return {"serviceid": serviceid, "pending_alerts": pending_alerts, "request": context['request']}

@@ -1,4 +1,5 @@
 {% extends "dashboard/layout.html" %}
+{% load alerts %}
 
 {% block title %}Dashboard{% endblock %}
 {% block header %}Task Manager :: Dashboard{% endblock %}
@@ -64,6 +65,7 @@
 			<td valign="bottom">
 				<div class="tabber" style="text-align: right; padding-right: 5px; font-weight: normal; color: #555;">&nbsp;
 				{% if user %}
+				{% alert_HUD %}
 				logged in as <b>{{ user }}</b> - <a href="/taskmanager/logout">log out</a>
 				{% endif %}
 				</div>
