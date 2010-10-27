@@ -28,6 +28,7 @@ class App(rapidsms.apps.base.AppBase):
         self.debug('app.Taskmanager start time: %s', datetime.now())
 
         # restore serialized tasks, if any
+        
         self.system_restore()
         self.debug('app.Taskmanager finished system_restore(), time: %s', datetime.now())
 
@@ -206,6 +207,8 @@ class App(rapidsms.apps.base.AppBase):
         else:
             t = eval(module)(smsuser, args)
 
+        # i want to see what's returned by default dir() and inspect.getmembers()
+        # problem: how do i call .restore on each object if 
         print '%s: dir(t): %s' % (20*'#', dir(t))
         print '%s: inspect.getmemebers(t): %s' % (20*'#', inspect.getmembers(t))
 
@@ -227,6 +230,12 @@ class App(rapidsms.apps.base.AppBase):
 
 
     def system_restore(self, *args, **kwargs):
+        # hack to get this working for now
+        task = Task.objects.get(pk=1)
+        patient = Patient.objects.get(pk=1)
+        args = None
+
+        
         # find things prev stored: task, <user>, args, and where we left off (currentnode)..?.
         serializedtasks = SerializedTasks.objects.all()
         
@@ -238,25 +247,25 @@ class App(rapidsms.apps.base.AppBase):
             module = '%s.%s' % (task.module, task.className)
             print module
             print type(module)
-            if not args:
-                t = eval(module)(smsuser)
-            else:
-                t = eval(module)(smsuser, args)
+            # if not args:
+            #     t = eval(module)(smsuser)
+            # else:
+            #     t = eval(module)(smsuser, args)
 
 
-            session = Session(patient=patient, task=task, process=process, state='initializing')
-            session.save()
+            # session = Session(patient=patient, task=task, process=process, state='initializing')
+            # session.save()
 
-            sm = sms.StateMachine(self, smsuser, t.interaction, session.id)
-            # reset to where it was (call sync()) which restores: msgid, currentnode(using unique label), sentcount...
-            # sm.restore() OR
-            for each object in t:
-                object.restore()
-                #how do i get the list of objects? use inspect, dir()...details?
+            # sm = sms.StateMachine(self, smsuser, t.interaction, session.id)
+            # # reset to where it was (call sync()) which restores: msgid, currentnode(using unique label), sentcount...
+            # # sm.restore() OR the following:
+            # for each object in t:
+            #     object.restore()
+            #     #how do i get the list of objects? use inspect, dir()...details? ***************
                     
-            # <start up>: return not-done sm to TaskManager.uism.
-            self.tm.addstatemachines(sm)
-            # ____
+            # # <start up>: return not-done sm to TaskManager.uism.
+            # self.tm.addstatemachines(sm)
+            # # ____
         
         
         #___
@@ -264,7 +273,8 @@ class App(rapidsms.apps.base.AppBase):
         
 
     def sync():
-        # calls .restore() for each sms object sent 
+        # calls .restore() for each sms object sent
+        print 'STUB: app.sync()'
 
     def ajax_POST_timeout(self, getargs, postargs=None):
         patient = Patient.objects.get(pk=postargs['patient'])

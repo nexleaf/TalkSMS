@@ -22,7 +22,7 @@ from taskmanager.models import *
 from parsedatetime import parsedatetime
 import taskscheduler
 
-class AppointmentRequest(object):
+class AppointmentRequest(Task):
     def __init__(self, user, args=None):
 
         self.args = args
@@ -52,13 +52,18 @@ class AppointmentRequest(object):
         # Great, we set up 3 appt. reminders and a followup for you.
         q3 = render_to_string('tasks/appts/rescheduled.html', {'args': self.args})
         m3 = sms.Message(q3, [], label='m3')
-        
-        self.graph = { m1: [m2, m3],
-                       m2: [],
-                       m3: [] }
+
+
+        # define a super class with .restore() in it. below, user will call createGraph(), createInteraction()
+        # which remember handles to graph and interaction. when .restore() is called it just updates the node we're at searching with the label.
+        graph = { m1: [m2, m3],
+                  m2: [],
+                  m3: [] }
+
+        super(AppointmentRequest, self).setgraph(graph)
+
 
         self.interaction = sms.Interaction(graph=self.graph, initialnode=m1, label='interaction')
-
     
 
     # developer defines this fn to specify what to save.
