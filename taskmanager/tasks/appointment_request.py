@@ -22,8 +22,12 @@ from taskmanager.models import *
 from parsedatetime import parsedatetime
 import taskscheduler
 
+from task import Task
+
 class AppointmentRequest(Task):
     def __init__(self, user, args=None):
+
+        Task.__init__(self)
 
         self.args = args
 
@@ -40,9 +44,9 @@ class AppointmentRequest(Task):
         # Hi {{ patient.first_name }}. Please schedule a {{ args.appt_type }}. 
         # Reply with a time (like 10/1/2012 16:30:00), or 'stop' to quit. 
         q1 = render_to_string('tasks/appts/request.html', {'patient': self.patient, 'args': self.args})
-        r1 = sms.Response('stop', match_regex=r'stop|STOP', label='stop', callback=self.appointment_cancelled_alert)
+        r1 = sms.Response('stop', match_regex=r'stop|STOP', label='r1', callback=self.appointment_cancelled_alert)
         #r2 = sms.Response('8/30/2012 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.schedule_reminders)
-        r2 = sms.Response('8/30/2012 16:30:00', match_callback=AppointmentRequest.match_date, label='datetime', callback=self.schedule_reminders)
+        r2 = sms.Response('8/30/2012 16:30:00', match_callback=AppointmentRequest.match_date, label='r2', callback=self.schedule_reminders)
         m1 = sms.Message(q1, [r1,r2], label='m1')
         # m2
         q2 = 'Ok, stopping messages now. Thank you for participating.'
@@ -53,18 +57,17 @@ class AppointmentRequest(Task):
         q3 = render_to_string('tasks/appts/rescheduled.html', {'args': self.args})
         m3 = sms.Message(q3, [], label='m3')
 
-
         # define a super class with .restore() in it. below, user will call createGraph(), createInteraction()
         # which remember handles to graph and interaction. when .restore() is called it just updates the node we're at searching with the label.
         graph = { m1: [m2, m3],
                   m2: [],
                   m3: [] }
 
+        # set self.graph
         super(AppointmentRequest, self).setgraph(graph)
-
-
-        self.interaction = sms.Interaction(graph=self.graph, initialnode=m1, label='interaction')
-    
+        # set self.interaction
+        super(AppointmentRequest, self).setinteraction(node=m1, label='interaction')
+        
 
     # developer defines this fn to specify what to save.
     # we save (most of) the stuff above, so what does the developer require in the functions below

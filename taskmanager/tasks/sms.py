@@ -156,10 +156,6 @@ class User(object):
         else:
             self.label = label
 
-        if not label:
-            raise ValueError('Response requires a unique label string.')
-        self.label = label
-
         # possible memory hog when msgid is large
         self.msgid = itertools.cycle(range(User.MAXMSGID+1))
         

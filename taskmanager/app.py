@@ -15,20 +15,18 @@ from taskmanager.tasks.models import SerializedTasks
 class App(rapidsms.apps.base.AppBase):
 
     def start(self):
-        self.counter = 0
 
         # keep until persistence is implemented
         self.smsusers = []
         # since we're just starting, any existing sessions must be complete
-        Session.objects.filter(completed=False).update(completed=True, completed_date=datetime.now(), state='router_restarted')
+        #Session.objects.filter(completed=False).update(completed=True, completed_date=datetime.now(), state='router_restarted')
 
         # initialize and start TalkSMS
         self.tm = sms.TaskManager(self)
         self.tm.run()
         self.debug('app.Taskmanager start time: %s', datetime.now())
 
-        # restore serialized tasks, if any
-        
+        # restore serialized tasks, if any        
         self.system_restore()
         self.debug('app.Taskmanager finished system_restore(), time: %s', datetime.now())
 
@@ -190,8 +188,7 @@ class App(rapidsms.apps.base.AppBase):
         else:
             process = None
 
-        self.debug('in app.ajax_POST_exec(): found process: %s', process)
-        
+        self.debug('in app.ajax_POST_exec(): found process: %s', process)        
         print 'printing args: %s; type: %s' % (args, type(args))
  
         # returns existing user, otherwise returns a new user 
@@ -207,19 +204,25 @@ class App(rapidsms.apps.base.AppBase):
         else:
             t = eval(module)(smsuser, args)
 
-        # i want to see what's returned by default dir() and inspect.getmembers()
-        # problem: how do i call .restore on each object if 
+        # i want to see what's returned by default dir() 
         print '%s: dir(t): %s' % (20*'#', dir(t))
-        print '%s: inspect.getmemebers(t): %s' % (20*'#', inspect.getmembers(t))
 
         # create a new session in db (sessions are only killed when statemachines are done)
         session = Session(patient=patient, task=task, process=process, state='initializing')
         session.save()
         # create a new SerializedTask ...
-        # st = SerializedTask()
-        # hmm...maybe i want SerializedTask in the main db.
-        # it would be nice to access session, instead of replicating it in a completely different db.
-
+        st = SerializedTasks(pblob='hi i am the pblob',\
+                             s_app='taskmanager',\
+                             s_session_id=1,\
+                             s_msgid=1,\
+                             s_done=False,\
+                             s_node='pointer_to_current_node',\
+                             s_event='WAITING_FOR_RESPONSE',\
+                             s_mbox='0 this is my response',\
+                             m_sentcount=2,\
+                             i_initialnode='pointer_to_initial_node',\
+                             u_nextmsgid=2)
+        st.save()
         # create and start task
         sm = sms.StateMachine(self, smsuser, t.interaction, session.id)
         self.tm.addstatemachines(sm)
@@ -230,23 +233,29 @@ class App(rapidsms.apps.base.AppBase):
 
 
     def system_restore(self, *args, **kwargs):
-        # hack to get this working for now
-        task = Task.objects.get(pk=1)
-        patient = Patient.objects.get(pk=1)
-        args = None
 
+        self.debug('in App.system_restore():')
+        opensessions = Session.objects.filter(completed=False)
+        print 'open sessions: %s' % opensessions
         
         # find things prev stored: task, <user>, args, and where we left off (currentnode)..?.
         serializedtasks = SerializedTasks.objects.all()
-        
+
+        self.debug('serializedtasks: %s', serializedtasks)
+
         for st in serializedtasks:
+
+            session = Session.objects.get(pk=st.s_session_id)
+            print 'matched session: %s' % session
+            
             # ____:instantiate task(<user>, args) as in ajax_POST_exec():
             
-            smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
-            __import__(task.module, globals(), locals(), [task.className])   
-            module = '%s.%s' % (task.module, task.className)
-            print module
-            print type(module)
+            
+            # smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
+            # __import__(task.module, globals(), locals(), [task.className])   
+            # module = '%s.%s' % (task.module, task.className)
+            # print module
+            # print type(module)
             # if not args:
             #     t = eval(module)(smsuser)
             # else:
