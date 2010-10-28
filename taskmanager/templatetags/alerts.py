@@ -37,7 +37,7 @@ def alert_HUD(context):
     # if it doesn't exist, we can't do much
     if service == None: return {}
     # get the ID of the service, too
-    serviceid = service.id
+    serviceid = str(service.id)
         
     # grab list of pending alerts
     request = context['request']
@@ -48,4 +48,4 @@ def alert_HUD(context):
         # if they've never marked their alerts read before, all alerts are pending
         pending_alerts = Alert.objects.filter(alert_type__service__id=serviceid)
     
-    return {"serviceid": serviceid, "pending_alerts": pending_alerts, "request": context['request']}
+    return {"serviceid": serviceid, "pending_alerts": pending_alerts, "request": context['request'], 'reviewed_on': request.session['alerts_reviewed_on']}
