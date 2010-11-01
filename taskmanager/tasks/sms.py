@@ -129,6 +129,31 @@ class Interaction(object):
         return string
 
 
+class Cycle(object):
+    "Cycle is a cyclic counter which supports the same interface as itertools.cycle() while using much less memory for large max's "
+    def __init__(self, max, restore=None):
+        self.max = max
+
+        if restore in range(0,self.max):
+            self.__counter = restore
+        else:
+            # return 0 first time next() or peek() is called.
+            self.__counter = -1
+        
+    def next(self):
+        if self.__counter < self.max:
+            self.__counter = self.__counter + 1
+        else:
+            self.__counter = 0
+        return self.__counter
+    
+    def peek(self):
+        if self.__counter < self.max:
+            return self.__counter + 1
+        else:
+            return 0
+        
+
 class User(object):
 
     MAXMSGID = 99
@@ -156,9 +181,8 @@ class User(object):
         else:
             self.label = label
 
-        # possible memory hog when msgid is large
-        self.msgid = itertools.cycle(range(User.MAXMSGID+1))
-        
+        # user.msgid.next() get's the next msgid
+        self.msgid = Cycle(User.MAXMSGID)
 
     @property
     def username(self):
@@ -386,7 +410,7 @@ class TaskManager(object):
 
         return text
 
-                
+
     # the first send is app.start() -> tm.run() -> sm.kick() -> app.send().
     # then each message is received (or ping-ponged back and forth)
     # by app.handle() -> app.recv() -> sm.kick() which

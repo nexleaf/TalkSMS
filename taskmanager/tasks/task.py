@@ -1,6 +1,5 @@
 import sms
-#from taskmanager.tasks.models import SerializedTasks
-#from taskmanager.models import *
+from taskmanager.tasks.models import SerializedTasks
 
 class Task(object):
     """base class for tasks"""
@@ -21,3 +20,5 @@ class Task(object):
     def restore(self):
         print 'STUB:  Task.restore()'
 
+
+        

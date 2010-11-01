@@ -85,6 +85,7 @@ class AppointmentRequest(Task):
         # return a dictionary of json'd attributes
         return pb
 
+
     @staticmethod
     def match_date(msgtxt):
         pdt = parsedatetime.Calendar()

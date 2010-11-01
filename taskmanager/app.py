@@ -12,6 +12,7 @@ import tasks.appointment_followup
 from taskmanager.models import *
 from taskmanager.tasks.models import SerializedTasks
 
+
 class App(rapidsms.apps.base.AppBase):
 
     def start(self):
@@ -210,21 +211,29 @@ class App(rapidsms.apps.base.AppBase):
         # create a new session in db (sessions are only killed when statemachines are done)
         session = Session(patient=patient, task=task, process=process, state='initializing')
         session.save()
-        # create a new SerializedTask ...
-        st = SerializedTasks(pblob='hi i am the pblob',\
-                             s_app='taskmanager',\
-                             s_session_id=1,\
-                             s_msgid=1,\
-                             s_done=False,\
-                             s_node='pointer_to_current_node',\
-                             s_event='WAITING_FOR_RESPONSE',\
-                             s_mbox='0 this is my response',\
-                             m_sentcount=2,\
-                             i_initialnode='pointer_to_initial_node',\
-                             u_nextmsgid=2)
-        st.save()
+
         # create and start task
         sm = sms.StateMachine(self, smsuser, t.interaction, session.id)
+        # make sure references to tasks graph and interaction work
+        print 't.graph: %s' % (t.graph)
+        print 't.interaction: %s' % (t.interaction)
+
+
+        # add current state of task as SerializedTask
+        st = SerializedTasks(pblob = t.save(),\
+                             s_app = self,\
+                             s_session_id = session.id,\
+                             s_msgid = sm.msgid,\
+                             s_done = sm.done,\
+                             s_node = sm.node.label,\
+                             s_event = sm.event,\
+                             s_mbox = sm.mbox if sm.mbox else '',
+                             m_sentcount = sm.node.sentcount,\
+                             i_initialnode = t.interaction.initialnode.label,\
+                             u_nextmsgid = 9999)
+        st.save()
+
+        
         self.tm.addstatemachines(sm)
         self.tm.run()
         
@@ -244,7 +253,7 @@ class App(rapidsms.apps.base.AppBase):
         self.debug('serializedtasks: %s', serializedtasks)
 
         for st in serializedtasks:
-
+            print 'st: %s' % st
             session = Session.objects.get(pk=st.s_session_id)
             print 'matched session: %s' % session
             
