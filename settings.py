@@ -51,8 +51,8 @@ INSTALLED_BACKENDS = {
         "smtp_port": 587,
         "imap_host": "imap.gmail.com",
         "imap_port": 993,
-        "username": "<change>@gmail.com",
-        "password": "<change>",
+        "username": "<username>@gmail.com",
+        "password": "<password>",
         "use_tls": "True",
         "poll_interval": "3" 
     }, 
@@ -102,7 +102,10 @@ INSTALLED_APPS = [
     # for django-reversion
     # http://wiki.github.com/etianen/django-reversion/getting-started
     "reversion",
-    "dbtemplates",    
+    "dbtemplates",
+    # for South
+    # http://south.aeracode.org/docs/index.html
+    "south",
     # our app
     "taskmanager", 
 ]
@@ -160,7 +163,7 @@ SITE_ID = 1
 
 # the default log settings are very noisy.
 LOG_LEVEL   = "DEBUG"
-LOG_FILE    = "/home/sunil/cens/taskmanager.log"
+LOG_FILE    = "/<repo root>/taskmanager.log"
 LOG_FORMAT  = "[%(name)s]: %(message)s"
 LOG_SIZE    = 0  # just one log 
 LOG_BACKUPS = 256 # number of logs to keep
