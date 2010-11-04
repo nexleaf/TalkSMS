@@ -218,27 +218,47 @@ class App(rapidsms.apps.base.AppBase):
         print 't.graph: %s' % (t.graph)
         print 't.interaction: %s' % (t.interaction)
 
+        # create and save initial state of this new task as SerializedTask
+        d = {'pblob' : t.save(),
+             's_app' : self,
+             's_session_id' : session.id,
+             's_msgid' : sm.msgid,
+             's_done' : sm.done,
+             's_node' : sm.node.label,
+             's_event' : sm.event,
+             's_mbox' : sm.mbox if sm.mbox else '',
+             'm_sentcount' : sm.node.sentcount,
+             'i_initialnode' : t.interaction.initialnode.label,
+             'u_nextmsgid' : smsuser.msgid.peek() }
+        st = SerializedTasks(**d)
+        st.save()        
 
-        # add current state of task as SerializedTask
-        st = SerializedTasks(pblob = t.save(),\
-                             s_app = self,\
-                             s_session_id = session.id,\
-                             s_msgid = sm.msgid,\
-                             s_done = sm.done,\
-                             s_node = sm.node.label,\
-                             s_event = sm.event,\
-                             s_mbox = sm.mbox if sm.mbox else '',
-                             m_sentcount = sm.node.sentcount,\
-                             i_initialnode = t.interaction.initialnode.label,\
-                             u_nextmsgid = 9999)
-        st.save()
-
-        
         self.tm.addstatemachines(sm)
         self.tm.run()
         
         return {'status': 'OK'}
 
+
+    def savetask(self, s_session_id, **kwargs):
+        self.debug('in App.savetask(): session id: %s, ' )
+        keys = ['plob', 's_msgid', 's_done', 's_node', 's_event', 's_mbox', 'm_sentcount', 'i_initialnode', 'u_nextmsgid']
+        
+        st = SerializedTasks.objects.get(pk=s_session_id)
+        self.debug('cur st: %s', st)
+
+        for k in keys:
+            if k in kwargs:
+                # if kwargs['s_mbox'] == None:
+                if (k is 's_mbox') and (not kwargs[k]):
+                    # st.s_mbox = ''
+                    object.__setattr__(st, k, '')
+                else:
+                    # st.k = kwargs[k]
+                    object.__setattr__(st, k, kwargs[k]) 
+
+        st.save()
+        
+        self.debug('new st: %s', st)
 
 
     def system_restore(self, *args, **kwargs):

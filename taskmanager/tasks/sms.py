@@ -130,26 +130,32 @@ class Interaction(object):
 
 
 class Cycle(object):
-    "Cycle is a cyclic counter which supports the same interface as itertools.cycle() while using much less memory for large max's "
+
+    # cyclic counter which supports the same interface as itertools.cycle() while using much less memory for large max's
+    
     def __init__(self, max, restore=None):
         self.max = max
 
         if restore in range(0,self.max):
-            self.__counter = restore
+            self.__c = restore
         else:
             # return 0 first time next() or peek() is called.
-            self.__counter = -1
-        
+            self.__c = -1
+
+    @property
+    def count(self):
+        return self.__c
+
     def next(self):
-        if self.__counter < self.max:
-            self.__counter = self.__counter + 1
+        if self.__c < self.max:
+            self.__c = self.__c + 1
         else:
-            self.__counter = 0
-        return self.__counter
+            self.__c = 0
+        return self.__c
     
     def peek(self):
-        if self.__counter < self.max:
-            return self.__counter + 1
+        if self.__c < self.max:
+            return self.__c + 1
         else:
             return 0
         
@@ -308,7 +314,7 @@ class StateMachine(object):
               # call response obj's developer defined callback
               if hasattr(response, 'callback'):
                   self.log.debug('calling %s callback', response)
-                  # send back rnew, session_id
+                  # Sendv back rnew, session_id
                   response.kwargs['response'] = rnew
                   response.kwargs['session_id'] = self.session_id
                   result = response.callback(*response.args, **response.kwargs)
@@ -343,7 +349,17 @@ class StateMachine(object):
 
               # support cens gui
               self.app.session_updatestate(self.session_id, self.event)
-              
+
+              # # save current state
+              # d = {'s_msgid' : self.msgid,
+              #      's_done' : self.done,
+              #      's_node' : self.node,
+              #      's_event': self.event,
+              #      's_mbox' : self.mbox,
+              #      'm_sentcount' : self.node.sentcount,
+              #      'u_nextmsgid' : self.user.msgid.peek() }
+              # self.app.savetask(self.session_id, **d)
+
               if self.event == 'WAIT_FOR_RESPONSE':
                   break
 
@@ -422,6 +438,17 @@ class TaskManager(object):
             self.log.debug('in TaskManager.send(): node.sentcount: %s, preparing to send text: %s', statemachine.node.sentcount, text)
             self.app.log_message(statemachine.session_id, text, True)
             self.app.send(statemachine.user.identity, statemachine.user.identityType, text)
+
+            # save current state
+            d = {'s_msgid' : statemachine.msgid,
+                 's_done' : statemachine.done,
+                 's_node' : statemachine.node.label,
+                 's_event': statemachine.event,
+                 's_mbox' : statemachine.mbox,
+                 'm_sentcount' : statemachine.node.sentcount,
+                 'u_nextmsgid' : statemachine.user.msgid.peek() }
+            self.app.savetask(statemachine.session_id, **d)
+
         else:
             self.log.debug('in TaskManager.send(): not sending, statemachine.node.sentcount:%s > MAX', statemachine.node.sentcount)
         
@@ -486,6 +513,17 @@ class TaskManager(object):
                     # support cens gui
                     # log reply
                     self.app.log_message(sm.session_id, response, True)
+
+                    # save current state
+                    d = {'s_msgid' : sm.msgid,
+                         's_done' : sm.done,
+                         's_node' : sm.node.label,
+                         's_event': sm.event,
+                         's_mbox' : sm.mbox,
+                         'm_sentcount' : sm.node.sentcount,
+                         'u_nextmsgid' : sm.user.msgid.peek() }
+                    self.app.savetask(sm.session_id, **d)
+
                     # already found and processed, so leave
                     break
 
