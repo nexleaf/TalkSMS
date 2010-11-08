@@ -7,9 +7,12 @@
 #      each response, or transition, affects change by calling an optional user-defined callback
 #    * once a task object is instantiated, sms.TaskManager.run() (called from app.py) 
 #      starts the statemachine, sends out the first message, and handles responses 
-#      tracing a path through the graph which is the interaction.  
+#      tracing a path through the graph which is the interaction.
+
+#    * implement save(), restore(): ...
+
 #    * (future) authorship also becomes a possiblity since it would be easier to have a 
-#      task set-up from the gui...
+#      task set-up from the gui.
 
 
 import sms
@@ -24,10 +27,10 @@ import taskscheduler
 
 from task import Task
 
-class AppointmentRequest(Task):
+class AppointmentRequest(object): #Task):
     def __init__(self, user, args=None):
 
-        Task.__init__(self)
+        # Task.__init__(self)
 
         self.args = args
 
@@ -64,26 +67,34 @@ class AppointmentRequest(Task):
                   m3: [] }
 
         # set self.graph
-        super(AppointmentRequest, self).setgraph(graph)
+        # super(AppointmentRequest, self).setgraph(graph)
+        self.graph = graph
         # set self.interaction
-        super(AppointmentRequest, self).setinteraction(node=m1, label='interaction')
+        self.interaction =  sms.Interaction(graph=self.graph, initialnode=m1, label='interaction')
+        # super(AppointmentRequest, self).setinteraction(node=m1, label='interaction')
         
 
-    # developer defines this fn to specify what to save.
+    # developer is required to implement save()
     # we save (most of) the stuff above, so what does the developer require in the functions below
     # 
     # self.args
     # ...
     #
     def save(self):
-        # just need to save self.args; need to turn it into a json string
-
-        # parameter blob
+        print 'in %s.save(): ' % (self.__class__.__name__)
+        # save whatever you like in the parameter blob
         pb = {}
-        pb['args'] = json.dumps(self.args)
+        pb['args'] = self.args
+        # # example of saving more stuff
+        # pb['data2'] = json.dumps(self.data2)
+        # pb['data1'] = json.dumps(self.data1)         
+        return json.dumps(pb)
 
-        # return a dictionary of json'd attributes
-        return pb
+    # developer required to implement restore():
+    def restore(self, pb_str):
+        print 'in %s.restore() stub' % (self.__class__.__name__)
+        pb = json.loads(pb_str)
+        self.args = pb['args']
 
 
     @staticmethod

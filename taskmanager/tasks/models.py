@@ -6,9 +6,11 @@ class SerializedTasks(models.Model):
     #consider
     #session = models.ForeignKey(Session)
 
+    # orig args sent to task
+    t_args = models.CharField(max_length=500)
     # parameter blob: json_self.args from the task
-    pblob = models.CharField(max_length=500)
-    
+    t_pblob = models.CharField(max_length=500)
+
     ## serialized attributes for sms.StateMachine, representing state at last .save()
     s_app = models.CharField(max_length=50)
     # we will use this as a foreign key into the Session/taskmanager_session table
@@ -34,7 +36,8 @@ class SerializedTasks(models.Model):
     
     def __unicode__(self):
         return """
-    pblob: %s
+    t_args: %s
+    t_pblob: %s
     s_app: %s
     s_session_id: %s
     s_msgid: %s
@@ -45,7 +48,8 @@ class SerializedTasks(models.Model):
     m_sentcount: %s
     i_initialnode: %s
     u_nextmsgid: %s
-        """ % (self.pblob,\
+        """ % (self.t_args,\
+               self.t_pblob,\
                self.s_app,\
                self.s_session_id,\
                self.s_msgid, \

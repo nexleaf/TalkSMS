@@ -22,22 +22,23 @@ class App(rapidsms.apps.base.AppBase):
         # since we're just starting, any existing sessions must be complete
         #Session.objects.filter(completed=False).update(completed=True, completed_date=datetime.now(), state='router_restarted')
 
-        # initialize and start TalkSMS
+        # initialize TalkSMS
         self.tm = sms.TaskManager(self)
-        self.tm.run()
-        self.debug('app.Taskmanager start time: %s', datetime.now())
+        self.debug('app.Taskmanager init time: %s', datetime.now())
 
         # restore serialized tasks, if any        
         self.system_restore()
         self.debug('app.Taskmanager finished system_restore(), time: %s', datetime.now())
 
+        # start TalkSMS
+        self.tm.run()
+        self.debug('app.Taskmanager start time: %s', datetime.now())
+
 
     def handle (self, message):
         self.debug('in App.handle(): message type: %s, message.text: %s', type(message),  message.text)
         response = self.tm.recv(message)
-        #self.debug("message.subject: %s; responding: %s", message.subject, response)
         message.respond(response)
-
 
     def send(self, identity, identityType, text):
         self.debug('in App.send():')
@@ -65,9 +66,6 @@ class App(rapidsms.apps.base.AppBase):
             assert(sm.msgid==msgid)
 
             self.debug('statemachine: %s; currentnode: %s; statemachine.node.sentcount: %s', sm, sm.node, sm.node.sentcount)
-            # if we're still waiting for a response, send a reminder and update sentcount
-            #if (sm.node.sentcount < sms.StateMachine.MAXSENTCOUNT):
-            #    self.debug('sm.node.sentcount incremented to: %s', sm.node.sentcount)                
             sm.kick()
             self.tm.send(sm)
         else:
@@ -206,7 +204,7 @@ class App(rapidsms.apps.base.AppBase):
             t = eval(module)(smsuser, args)
 
         # i want to see what's returned by default dir() 
-        print '%s: dir(t): %s' % (20*'#', dir(t))
+        # print '%s: dir(t): %s' % (20*'#', dir(t))
 
         # create a new session in db (sessions are only killed when statemachines are done)
         session = Session(patient=patient, task=task, process=process, state='initializing')
@@ -219,7 +217,8 @@ class App(rapidsms.apps.base.AppBase):
         print 't.interaction: %s' % (t.interaction)
 
         # create and save initial state of this new task as SerializedTask
-        d = {'pblob' : t.save(),
+        d = {'t_args' : postargs['arguments'],
+             't_pblob' : t.save(),
              's_app' : self,
              's_session_id' : session.id,
              's_msgid' : sm.msgid,
@@ -241,8 +240,11 @@ class App(rapidsms.apps.base.AppBase):
 
     def savetask(self, s_session_id, **kwargs):
         self.debug('in App.savetask(): session id: %s, ' )
-        keys = ['plob', 's_msgid', 's_done', 's_node', 's_event', 's_mbox', 'm_sentcount', 'i_initialnode', 'u_nextmsgid']
-        
+        # cols from task_serializedtasks
+        keys = ['t_args', 't_plob', 's_msgid', 's_done', 's_node', 's_event', 's_mbox', 'm_sentcount', 'i_initialnode', 'u_nextmsgid']
+
+        # what happens when there is more than one match here?
+        # .get() raises an exection if there is more than one match
         st = SerializedTasks.objects.get(pk=s_session_id)
         self.debug('cur st: %s', st)
 
@@ -264,50 +266,63 @@ class App(rapidsms.apps.base.AppBase):
     def system_restore(self, *args, **kwargs):
 
         self.debug('in App.system_restore():')
-        opensessions = Session.objects.filter(completed=False)
-        print 'open sessions: %s' % opensessions
         
-        # find things prev stored: task, <user>, args, and where we left off (currentnode)..?.
-        serializedtasks = SerializedTasks.objects.all()
+        # find live tasks
+        sts = SerializedTasks.objects.filter(s_done=False)
 
-        self.debug('serializedtasks: %s', serializedtasks)
+        for st in sts:
+            self.debug('restoring st: %s', st)
 
-        for st in serializedtasks:
-            print 'st: %s' % st
-            session = Session.objects.get(pk=st.s_session_id)
-            print 'matched session: %s' % session
+            session = Session.objects.filter(pk=st.s_session_id)
+            # many sm's for each session so, there will always be one session.
+            assert(len(session)==1)
+            self.debug('found matching sessions: %s', session[0])
+            self.debug('found session: ')
+            self.debug('id:             %s', session[0].id)
+            self.debug('patient_id:     %s', session[0].patient_id)
+            self.debug('task_id:        %s', session[0].task_id)
+            self.debug('process_id:     %s', session[0].process_id)
+            self.debug('add_date:       %s', session[0].add_date)
+            self.debug('completed:      %s', session[0].completed)
+            self.debug('completed_date: %s', session[0].completed_date)
+            self.debug('timeout_date:   %s', session[0].timeout_date)
+            self.debug('state:          %s', session[0].state)
             
-            # ____:instantiate task(<user>, args) as in ajax_POST_exec():
+            # find or create smsuser
+            patient = Patient.objects.get(pk=session[0].patient_id)
+            smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
             
+            # re-create task
+            task = Task.objects.get(pk=session[0].task_id)
+            t_args = eval(json.loads(st.t_args))
+            __import__(task.module, globals(), locals(), [task.className])   
+            module = '%s.%s' % (task.module, task.className)
+            print module
+            print type(module)
+            if not t_args:
+                t = eval(module)(smsuser)
+            else:
+                t = eval(module)(smsuser, t_args)
+            # restore task state
+            print 'st.t_pblob: %s' % st.t_pblob
+            t.restore(st.t_pblob)
             
-            # smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
-            # __import__(task.module, globals(), locals(), [task.className])   
-            # module = '%s.%s' % (task.module, task.className)
-            # print module
-            # print type(module)
-            # if not args:
-            #     t = eval(module)(smsuser)
-            # else:
-            #     t = eval(module)(smsuser, args)
-
-
-            # session = Session(patient=patient, task=task, process=process, state='initializing')
-            # session.save()
-
-            # sm = sms.StateMachine(self, smsuser, t.interaction, session.id)
-            # # reset to where it was (call sync()) which restores: msgid, currentnode(using unique label), sentcount...
-            # # sm.restore() OR the following:
-            # for each object in t:
-            #     object.restore()
-            #     #how do i get the list of objects? use inspect, dir()...details? ***************
-                    
-            # # <start up>: return not-done sm to TaskManager.uism.
-            # self.tm.addstatemachines(sm)
-            # # ____
-        
-        
-        #___
-        # details: what's the expected msgid?
+            # restore statemachine state
+            sm = sms.StateMachine(self, smsuser, t.interaction, st.s_session_id)
+            sm.msgid = st.s_msgid
+            sm.done = False if st.s_done==0 else True
+            # find correct node in graph which matches the label we saved
+            for node in sm.interaction.graph.keys():
+                if node.label is st.s_node:
+                    sm.node = node
+            sm.node.sentcount = st.m_sentcount
+            sm.event = st.s_event
+            sm.mbox = None if st.s_mbox is '' else st.s_mbox
+            
+            # hmm, might need to be careful about setting the users's msgid...
+            smsuser.msgid.reset(st.u_nextmsgid)
+            # hmm, should we add a list of the new sm's to tm after the loop?
+            self.tm.addstatemachines(sm)
         
 
     def sync():

@@ -130,18 +130,20 @@ class Interaction(object):
 
 
 class Cycle(object):
+    # cyclic counter supporting the same interface as itertools.cycle() while using much less memory for large max's
 
-    # cyclic counter which supports the same interface as itertools.cycle() while using much less memory for large max's
-    
-    def __init__(self, max, restore=None):
+    def __init__(self, max):
         self.max = max
+        self.__c = -1
 
-        if restore in range(0,self.max):
-            self.__c = restore
+    def reset(self, r):
+        # if (0 <= reset < max+1)
+        if r in range(0,self.max+1):
+            self.__c = r
         else:
             # return 0 first time next() or peek() is called.
             self.__c = -1
-
+            
     @property
     def count(self):
         return self.__c
@@ -350,6 +352,8 @@ class StateMachine(object):
               # support cens gui
               self.app.session_updatestate(self.session_id, self.event)
 
+              # does it make sense to save partial state?
+              # only if we can guarentee we re-enter from the exit point...hmm
               # # save current state
               # d = {'s_msgid' : self.msgid,
               #      's_done' : self.done,
@@ -444,7 +448,7 @@ class TaskManager(object):
                  's_done' : statemachine.done,
                  's_node' : statemachine.node.label,
                  's_event': statemachine.event,
-                 's_mbox' : statemachine.mbox,
+                 's_mbox' : statemachine.mbox if statemachine.mbox else '',
                  'm_sentcount' : statemachine.node.sentcount,
                  'u_nextmsgid' : statemachine.user.msgid.peek() }
             self.app.savetask(statemachine.session_id, **d)
@@ -519,7 +523,7 @@ class TaskManager(object):
                          's_done' : sm.done,
                          's_node' : sm.node.label,
                          's_event': sm.event,
-                         's_mbox' : sm.mbox,
+                         's_mbox' : sm.mbox if sm.mbox else '',
                          'm_sentcount' : sm.node.sentcount,
                          'u_nextmsgid' : sm.user.msgid.peek() }
                     self.app.savetask(sm.session_id, **d)
