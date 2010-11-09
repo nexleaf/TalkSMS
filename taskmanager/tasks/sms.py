@@ -21,7 +21,12 @@ class Response(object):
                 raise ValueError('Response.match_regex must re.match() Response.text')
             self.match_regex = re.compile(match_regex)
         self.text = text
+
+
+        if not label:
+            raise ValueError('Response requires a unique label string.')
         self.label = label
+        
         if callback:
             self.callback = callback
             self.args = args
@@ -45,7 +50,11 @@ class Message(object):
         self.question = question
         self.responselist = responselist
         self.autoresend = autoresend
+
+        if not label:
+            raise ValueError('Response requires a unique label string.')
         self.label = label
+        
         self.sentcount = 0
 
     def __str__(self):
@@ -60,10 +69,14 @@ class Interaction(object):
 
         Interaction.isvalid(graph, initialnode)
 
-        if label is None:
+        if label:
             self.label = self.__class__.__name__
         else:
             self.label = label
+        if not label:
+            raise ValueError('Response requires a unique label string.')
+        self.label = label
+            
         self.initialnode = initialnode
         self.graph = graph
 
@@ -116,6 +129,39 @@ class Interaction(object):
         return string
 
 
+class Cycle(object):
+    # cyclic counter supporting the same interface as itertools.cycle() while using much less memory for large max's
+
+    def __init__(self, max):
+        self.max = max
+        self.__c = -1
+
+    def reset(self, r):
+        # if (0 <= reset < max+1)
+        if r in range(0,self.max+1):
+            self.__c = r
+        else:
+            # return 0 first time next() or peek() is called.
+            self.__c = -1
+            
+    @property
+    def count(self):
+        return self.__c
+
+    def next(self):
+        if self.__c < self.max:
+            self.__c = self.__c + 1
+        else:
+            self.__c = 0
+        return self.__c
+    
+    def peek(self):
+        if self.__c < self.max:
+            return self.__c + 1
+        else:
+            return 0
+        
+
 class User(object):
 
     MAXMSGID = 99
@@ -143,9 +189,8 @@ class User(object):
         else:
             self.label = label
 
-        # possible memory hog when msgid is large
-        self.msgid = itertools.cycle(range(User.MAXMSGID+1))
-        
+        # user.msgid.next() get's the next msgid
+        self.msgid = Cycle(User.MAXMSGID)
 
     @property
     def username(self):
@@ -161,14 +206,15 @@ class StateMachine(object):
       # time to resend a message in minutes
       TIMEOUT = 10
       
-      def __init__(self, app, user, interaction, session_id, label=''):
+      def __init__(self, app, user, task, session_id, label=''):
           self.app = app
           self.log = app
 
           # support cens gui
           self.session_id = session_id
-          
-          self.interaction = interaction
+
+          self.task = task
+          self.interaction = task.interaction
           self.user = user
           self.label = label
           
@@ -271,7 +317,7 @@ class StateMachine(object):
               # call response obj's developer defined callback
               if hasattr(response, 'callback'):
                   self.log.debug('calling %s callback', response)
-                  # send back rnew, session_id
+                  # Sendv back rnew, session_id
                   response.kwargs['response'] = rnew
                   response.kwargs['session_id'] = self.session_id
                   result = response.callback(*response.args, **response.kwargs)
@@ -306,7 +352,7 @@ class StateMachine(object):
 
               # support cens gui
               self.app.session_updatestate(self.session_id, self.event)
-              
+
               if self.event == 'WAIT_FOR_RESPONSE':
                   break
 
@@ -373,7 +419,7 @@ class TaskManager(object):
 
         return text
 
-                
+
     # the first send is app.start() -> tm.run() -> sm.kick() -> app.send().
     # then each message is received (or ping-ponged back and forth)
     # by app.handle() -> app.recv() -> sm.kick() which
@@ -385,6 +431,18 @@ class TaskManager(object):
             self.log.debug('in TaskManager.send(): node.sentcount: %s, preparing to send text: %s', statemachine.node.sentcount, text)
             self.app.log_message(statemachine.session_id, text, True)
             self.app.send(statemachine.user.identity, statemachine.user.identityType, text)
+
+            # save current state
+            d = {'t_pblob' : statemachine.task.save(),
+                 's_msgid' : statemachine.msgid,
+                 's_done' : statemachine.done,
+                 's_node' : statemachine.node.label,
+                 's_event': statemachine.event,
+                 's_mbox' : statemachine.mbox if statemachine.mbox else '',
+                 'm_sentcount' : statemachine.node.sentcount,
+                 'u_nextmsgid' : statemachine.user.msgid.peek() }
+            self.app.savetask(statemachine.session_id, **d)
+
         else:
             self.log.debug('in TaskManager.send(): not sending, statemachine.node.sentcount:%s > MAX', statemachine.node.sentcount)
         
@@ -449,6 +507,18 @@ class TaskManager(object):
                     # support cens gui
                     # log reply
                     self.app.log_message(sm.session_id, response, True)
+
+                    # save current state
+                    d = {'t_pblob' : sm.task.save(),
+                         's_msgid' : sm.msgid,
+                         's_done' : sm.done,
+                         's_node' : sm.node.label,
+                         's_event': sm.event,
+                         's_mbox' : sm.mbox if sm.mbox else '',
+                         'm_sentcount' : sm.node.sentcount,
+                         'u_nextmsgid' : sm.user.msgid.peek() }
+                    self.app.savetask(sm.session_id, **d)
+
                     # already found and processed, so leave
                     break
 

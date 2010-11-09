@@ -8,8 +8,12 @@ import json, re
 from django.template.loader import render_to_string
 from taskmanager.models import *
 
-class AppointmentReminder(object):
+from task import Task
+
+class AppointmentReminder(Task):
     def __init__(self, user, args=None):
+
+        Task.__init__(self)
 
         self.args = args
 
@@ -34,24 +38,36 @@ class AppointmentReminder(object):
             # resolves to:
             #{% load parse_date %}Your {{ args.appt_type }} is approaching. Reply 'cancel' to cancel it or 'ok' to confirm.
             q1 = render_to_string('tasks/appts/reminder.html', {'patient': self.patient, 'args': self.args})
-        r1 = sms.Response('ok', match_regex=r'ok|OK|Ok')
-        r2 = sms.Response('cancel', match_regex=r'cancel|no', callback=self.cancel)
-        m1 = sms.Message(q1, [r1,r2])
+        r1 = sms.Response('ok', match_regex=r'ok|OK|Ok', label='r1')
+        r2 = sms.Response('cancel', match_regex=r'cancel|no', label='r2', callback=self.cancel)
+        m1 = sms.Message(q1, [r1,r2], label='m1')
     
         # m2
         q2 = 'See you soon.'
-        m2 = sms.Message(q2, [])
+        m2 = sms.Message(q2, [], label='m2')
         
         # m3
         q3 = 'Ok, canceling appointment as you requested.'
-        m3 = sms.Message(q3, [])
+        m3 = sms.Message(q3, [], label='m3')
         
         self.graph = { m1: [m2, m3],
                        m2: [],
                        m3: [] }
         
-        self.interaction = sms.Interaction(self.graph, m1, self.__class__.__name__ + '_interaction')
+        # self.interaction = sms.Interaction(graph=self.graph, initialnode=m1, label='interaction')
+        super(AppointmentReminder, self).setinteraction(graph=self.graph, initialnode=m1, label='interaction')
 
+
+    def save(self):
+        print 'in %s.save(): ' % (self.__class__.__name__)
+        # save whatever you like in the parameter blob
+        return json.dumps({})
+
+    # developer required to implement restore():
+    def restore(self, pb_str):
+        print 'in %s.restore() stub' % (self.__class__.__name__)
+        pb = json.loads(pb_str)
+        
 
     def cancel(self, *args, **kwargs):
         session_id = kwargs['session_id']

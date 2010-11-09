@@ -7,9 +7,13 @@
 #      each response, or transition, affects change by calling an optional user-defined callback
 #    * once a task object is instantiated, sms.TaskManager.run() (called from app.py) 
 #      starts the statemachine, sends out the first message, and handles responses 
-#      tracing a path through the graph which is the interaction.  
+#      tracing a path through the graph which is the interaction.
+
+#    * implement save(), restore(): ...
+
 #    * (future) authorship also becomes a possiblity since it would be easier to have a 
-#      task set-up from the gui...
+#      task set-up from the gui.
+
 
 import sms
 
@@ -21,8 +25,12 @@ from taskmanager.models import *
 from parsedatetime import parsedatetime
 import taskscheduler
 
-class AppointmentRequest(object):
+from task import Task
+
+class AppointmentRequest(Task):
     def __init__(self, user, args=None):
+
+        Task.__init__(self)
 
         self.args = args
 
@@ -34,32 +42,60 @@ class AppointmentRequest(object):
         else:
             raise ValueError('unknown type given for user: %s' % user)
 
-
         # m1
         # resolves to: 
         # Hi {{ patient.first_name }}. Please schedule a {{ args.appt_type }}. 
         # Reply with a time (like 10/1/2012 16:30:00), or 'stop' to quit. 
         q1 = render_to_string('tasks/appts/request.html', {'patient': self.patient, 'args': self.args})
-        r1 = sms.Response('stop', match_regex=r'stop|STOP', label='stop', callback=self.appointment_cancelled_alert)
+        r1 = sms.Response('stop', match_regex=r'stop|STOP', label='r1', callback=self.appointment_cancelled_alert)
         #r2 = sms.Response('8/30/2012 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.schedule_reminders)
-        r2 = sms.Response('8/30/2012 16:30:00', match_callback=AppointmentRequest.match_date, label='datetime', callback=self.schedule_reminders)
-        m1 = sms.Message(q1, [r1,r2])
+        r2 = sms.Response('8/30/2012 16:30:00', match_callback=AppointmentRequest.match_date, label='r2', callback=self.schedule_reminders)
+        m1 = sms.Message(q1, [r1,r2], label='m1')
         # m2
         q2 = 'Ok, stopping messages now. Thank you for participating.'
-        m2 = sms.Message(q2, [])
+        m2 = sms.Message(q2, [], label='m2')
         # m3
         # resolves to:
         # Great, we set up 3 appt. reminders and a followup for you.
         q3 = render_to_string('tasks/appts/rescheduled.html', {'args': self.args})
-        m3 = sms.Message(q3, [])
+        m3 = sms.Message(q3, [], label='m3')
+
+        # define a super class with .restore() in it. below, user will call createGraph(), createInteraction()
+        # which remember handles to graph and interaction. when .restore() is called it just updates the node we're at searching with the label.
+        graph = { m1: [m2, m3],
+                  m2: [],
+                  m3: [] }
+
+        # set self.graph
+        self.graph = graph
+        # set self.interaction
+        # self.interaction =  sms.Interaction(graph=self.graph, initialnode=m1, label='interaction')
+        super(AppointmentRequest, self).setinteraction(graph=self.graph, initialnode=m1, label='interaction')
         
-        self.graph = { m1: [m2, m3],
-                       m2: [],
-                       m3: [] }
 
-        self.interaction = sms.Interaction(self.graph, m1, self.__class__.__name__ + '_interaction')
+    # developer is required to implement save()
+    # we save (most of) the stuff above, so what does the developer require in the functions below
+    # 
+    # self.args
+    # ...
+    #
+    def save(self):
+        print 'in %s.save(): ' % (self.__class__.__name__)
+        # save whatever you like in the parameter blob
+        pb = {}
+        pb['args'] = self.args
+        # # example of saving more stuff
+        # pb['data2'] = json.dumps(self.data2)
+        # pb['data1'] = json.dumps(self.data1)         
+        return json.dumps(pb)
 
-    
+    # developer required to implement restore():
+    def restore(self, pb_str):
+        print 'in %s.restore() stub' % (self.__class__.__name__)
+        pb = json.loads(pb_str)
+        self.args = pb['args']
+
+
     @staticmethod
     def match_date(msgtxt):
         pdt = parsedatetime.Calendar()
