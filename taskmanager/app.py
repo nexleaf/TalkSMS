@@ -16,11 +16,8 @@ from taskmanager.tasks.models import SerializedTasks
 class App(rapidsms.apps.base.AppBase):
 
     def start(self):
-
         # keep until persistence is implemented
         self.smsusers = []
-        # since we're just starting, any existing sessions must be complete
-        #Session.objects.filter(completed=False).update(completed=True, completed_date=datetime.now(), state='router_restarted')
 
         # initialize TalkSMS
         self.tm = sms.TaskManager(self)
@@ -39,6 +36,7 @@ class App(rapidsms.apps.base.AppBase):
         self.debug('in App.handle(): message type: %s, message.text: %s', type(message),  message.text)
         response = self.tm.recv(message)
         message.respond(response)
+
 
     def send(self, identity, identityType, text):
         self.debug('in App.send():')
@@ -196,29 +194,22 @@ class App(rapidsms.apps.base.AppBase):
         __import__(task.module, globals(), locals(), [task.className])   
         module = '%s.%s' % (task.module, task.className)
 
-        print module
-        print type(module)
+        # create task t
         if not args:
             t = eval(module)(smsuser)
         else:
             t = eval(module)(smsuser, args)
-
-        # i want to see what's returned by default dir() 
-        # print '%s: dir(t): %s' % (20*'#', dir(t))
 
         # create a new session in db (sessions are only killed when statemachines are done)
         session = Session(patient=patient, task=task, process=process, state='initializing')
         session.save()
 
         # create and start task
-        sm = sms.StateMachine(self, smsuser, t.interaction, session.id)
-        # make sure references to tasks graph and interaction work
-        print 't.graph: %s' % (t.graph)
-        print 't.interaction: %s' % (t.interaction)
+        sm = sms.StateMachine(self, smsuser, t, session.id)
 
         # create and save initial state of this new task as SerializedTask
         d = {'t_args' : postargs['arguments'],
-             't_pblob' : t.save(),
+             't_pblob' : sm.task.save(),
              's_app' : self,
              's_session_id' : session.id,
              's_msgid' : sm.msgid,
@@ -227,7 +218,7 @@ class App(rapidsms.apps.base.AppBase):
              's_event' : sm.event,
              's_mbox' : sm.mbox if sm.mbox else '',
              'm_sentcount' : sm.node.sentcount,
-             'i_initialnode' : t.interaction.initialnode.label,
+             'i_initialnode' : sm.task.interaction.initialnode.label,
              'u_nextmsgid' : smsuser.msgid.peek() }
         st = SerializedTasks(**d)
         st.save()        
@@ -257,7 +248,7 @@ class App(rapidsms.apps.base.AppBase):
                 else:
                     # st.k = kwargs[k]
                     object.__setattr__(st, k, kwargs[k]) 
-
+        
         st.save()
         
         self.debug('new st: %s', st)
@@ -276,6 +267,7 @@ class App(rapidsms.apps.base.AppBase):
             session = Session.objects.filter(pk=st.s_session_id)
             # many sm's for each session so, there will always be one session.
             assert(len(session)==1)
+
             self.debug('found matching sessions: %s', session[0])
             self.debug('found session: ')
             self.debug('id:             %s', session[0].id)
@@ -308,7 +300,7 @@ class App(rapidsms.apps.base.AppBase):
             t.restore(st.t_pblob)
             
             # restore statemachine state
-            sm = sms.StateMachine(self, smsuser, t.interaction, st.s_session_id)
+            sm = sms.StateMachine(self, smsuser, t, st.s_session_id)
             sm.msgid = st.s_msgid
             sm.done = False if st.s_done==0 else True
             # find correct node in graph which matches the label we saved

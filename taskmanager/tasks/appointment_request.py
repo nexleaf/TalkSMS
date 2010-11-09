@@ -27,10 +27,10 @@ import taskscheduler
 
 from task import Task
 
-class AppointmentRequest(object): #Task):
+class AppointmentRequest(Task):
     def __init__(self, user, args=None):
 
-        # Task.__init__(self)
+        Task.__init__(self)
 
         self.args = args
 
@@ -67,11 +67,10 @@ class AppointmentRequest(object): #Task):
                   m3: [] }
 
         # set self.graph
-        # super(AppointmentRequest, self).setgraph(graph)
         self.graph = graph
         # set self.interaction
-        self.interaction =  sms.Interaction(graph=self.graph, initialnode=m1, label='interaction')
-        # super(AppointmentRequest, self).setinteraction(node=m1, label='interaction')
+        # self.interaction =  sms.Interaction(graph=self.graph, initialnode=m1, label='interaction')
+        super(AppointmentRequest, self).setinteraction(graph=self.graph, initialnode=m1, label='interaction')
         
 
     # developer is required to implement save()

@@ -206,14 +206,15 @@ class StateMachine(object):
       # time to resend a message in minutes
       TIMEOUT = 10
       
-      def __init__(self, app, user, interaction, session_id, label=''):
+      def __init__(self, app, user, task, session_id, label=''):
           self.app = app
           self.log = app
 
           # support cens gui
           self.session_id = session_id
-          
-          self.interaction = interaction
+
+          self.task = task
+          self.interaction = task.interaction
           self.user = user
           self.label = label
           
@@ -352,18 +353,6 @@ class StateMachine(object):
               # support cens gui
               self.app.session_updatestate(self.session_id, self.event)
 
-              # does it make sense to save partial state?
-              # only if we can guarentee we re-enter from the exit point...hmm
-              # # save current state
-              # d = {'s_msgid' : self.msgid,
-              #      's_done' : self.done,
-              #      's_node' : self.node,
-              #      's_event': self.event,
-              #      's_mbox' : self.mbox,
-              #      'm_sentcount' : self.node.sentcount,
-              #      'u_nextmsgid' : self.user.msgid.peek() }
-              # self.app.savetask(self.session_id, **d)
-
               if self.event == 'WAIT_FOR_RESPONSE':
                   break
 
@@ -444,7 +433,8 @@ class TaskManager(object):
             self.app.send(statemachine.user.identity, statemachine.user.identityType, text)
 
             # save current state
-            d = {'s_msgid' : statemachine.msgid,
+            d = {'t_pblob' : statemachine.task.save(),
+                 's_msgid' : statemachine.msgid,
                  's_done' : statemachine.done,
                  's_node' : statemachine.node.label,
                  's_event': statemachine.event,
@@ -519,7 +509,8 @@ class TaskManager(object):
                     self.app.log_message(sm.session_id, response, True)
 
                     # save current state
-                    d = {'s_msgid' : sm.msgid,
+                    d = {'t_pblob' : sm.task.save(),
+                         's_msgid' : sm.msgid,
                          's_done' : sm.done,
                          's_node' : sm.node.label,
                          's_event': sm.event,
