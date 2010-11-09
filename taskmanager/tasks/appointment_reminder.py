@@ -38,8 +38,8 @@ class AppointmentReminder(Task):
             # resolves to:
             #{% load parse_date %}Your {{ args.appt_type }} is approaching. Reply 'cancel' to cancel it or 'ok' to confirm.
             q1 = render_to_string('tasks/appts/reminder.html', {'patient': self.patient, 'args': self.args})
-        r1 = sms.Response('ok', match_regex=r'ok|OK|Ok')
-        r2 = sms.Response('cancel', match_regex=r'cancel|no', callback=self.cancel)
+        r1 = sms.Response('ok', match_regex=r'ok|OK|Ok', label='r1')
+        r2 = sms.Response('cancel', match_regex=r'cancel|no', label='r2', callback=self.cancel)
         m1 = sms.Message(q1, [r1,r2], label='m1')
     
         # m2
