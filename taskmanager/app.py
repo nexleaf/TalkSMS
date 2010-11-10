@@ -259,11 +259,12 @@ class App(rapidsms.apps.base.AppBase):
         self.debug('in App.system_restore():')
         
         # find live tasks
-        sts = SerializedTasks.objects.filter(s_done=False)
+        # sts = SerializedTasks.objects.filter(s_done=False)
+        
+        # return all saved task
+        sts = SerializedTasks.objects.all()
 
         for st in sts:
-            self.debug('restoring st: %s', st)
-
             session = Session.objects.filter(pk=st.s_session_id)
             # many sm's for each session so, there will always be one session.
             assert(len(session)==1)
@@ -283,7 +284,18 @@ class App(rapidsms.apps.base.AppBase):
             # find or create smsuser
             patient = Patient.objects.get(pk=session[0].patient_id)
             smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
-            
+            # need to be careful about setting the users's msgid...
+            smsuser.msgid.reset(st.s_msgid)
+            self.debug('resetting user.msgid: %s', st.s_msgid)
+
+            # make sure smsusers in memory are reset to their last state,
+            # even if their associated statemachines are no longer active
+            if st.s_done:
+                self.debug('\n\npassing restore of dead st: %s', st)
+                continue
+
+            self.debug('\n\nrestoring st: %s', st)
+
             # re-create task
             task = Task.objects.get(pk=session[0].task_id)
             t_args = eval(json.loads(st.t_args))
@@ -299,9 +311,11 @@ class App(rapidsms.apps.base.AppBase):
             print 'st.t_pblob: %s' % st.t_pblob
             t.restore(st.t_pblob)
             
-            # restore statemachine state
+            # restore statemachine state, sm.msgid is incremented to st.u_nextmsgid at init
             sm = sms.StateMachine(self, smsuser, t, st.s_session_id)
-            sm.msgid = st.s_msgid
+            #sm.msgid = st.s_msgid
+            assert(smsuser.msgid.peek() == st.u_nextmsgid)
+            self.debug('\nsm.msgid: %s\nsmsuser.msgid.peek(): %s\nst.u_nextmsgid: %s\n', sm.msgid, smsuser.msgid.peek(), st.u_nextmsgid)
             sm.done = False if st.s_done==0 else True
             # find correct node in graph which matches the label we saved
             for node in sm.interaction.graph.keys():
@@ -311,8 +325,6 @@ class App(rapidsms.apps.base.AppBase):
             sm.event = st.s_event
             sm.mbox = None if st.s_mbox is '' else st.s_mbox
             
-            # hmm, might need to be careful about setting the users's msgid...
-            smsuser.msgid.reset(st.u_nextmsgid)
             # hmm, should we add a list of the new sm's to tm after the loop?
             self.tm.addstatemachines(sm)
         
