@@ -285,13 +285,16 @@ class App(rapidsms.apps.base.AppBase):
             patient = Patient.objects.get(pk=session[0].patient_id)
             smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
             # need to be careful about setting the users's msgid...
-            smsuser.msgid.reset(st.s_msgid)
-            self.debug('resetting user.msgid: %s', st.s_msgid)
+            smsuser.msgid.reset(st.s_msgid-1)
 
-            # make sure smsusers in memory are reset to their last state,
-            # even if their associated statemachines are no longer active
+            self.debug('resetting user.msgid: %s', st.s_msgid-1)
+
+            # make sure smsusers in memory are reset to their last state
             if st.s_done:
                 self.debug('\n\npassing restore of dead st: %s', st)
+                # if there is no live statemachine, we want to restore user to the state it was after this sm was created.
+                # (helps when there are no live statemachines at restore)
+                self.debug('increment user id %s from: %s to: %s', smsuser.identity, smsuser.msgid.count, smsuser.msgid.next())
                 continue
 
             self.debug('\n\nrestoring st: %s', st)
@@ -314,8 +317,9 @@ class App(rapidsms.apps.base.AppBase):
             # restore statemachine state, sm.msgid is incremented to st.u_nextmsgid at init
             sm = sms.StateMachine(self, smsuser, t, st.s_session_id)
             #sm.msgid = st.s_msgid
-            assert(smsuser.msgid.peek() == st.u_nextmsgid)
-            self.debug('\nsm.msgid: %s\nsmsuser.msgid.peek(): %s\nst.u_nextmsgid: %s\n', sm.msgid, smsuser.msgid.peek(), st.u_nextmsgid)
+            #assert(smsuser.msgid.peek() == st.u_nextmsgid)
+            self.debug('\nsm.msgid (from smsuser.msgid.count): %s\nsmsuser.msgid.peek(): %s\nst.u_nextmsgid: %s\n',
+                       smsuser.msgid.count, smsuser.msgid.peek(), st.u_nextmsgid)
             sm.done = False if st.s_done==0 else True
             # find correct node in graph which matches the label we saved
             for node in sm.interaction.graph.keys():
