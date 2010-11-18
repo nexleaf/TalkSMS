@@ -8,7 +8,7 @@ import tasks.sms as sms
 import tasks.appointment_request
 import tasks.appointment_reminder
 import tasks.appointment_followup
-
+import tasks.taskscheduler
 from taskmanager.models import *
 from taskmanager.tasks.models import SerializedTasks
 
@@ -34,8 +34,24 @@ class App(rapidsms.apps.base.AppBase):
 
     def handle (self, message):
         self.debug('in App.handle(): message type: %s, message.text: %s', type(message),  message.text)
-        response = self.tm.recv(message)
-        message.respond(response)
+
+        # is user in db?
+        knownuser = Patient.objects.filter(address=message.connection.identity)
+
+        if knownuser:
+            response = self.tm.recv(message)
+            message.respond(response)
+        else:
+            # create a new patient
+            patient = Patient(address=message.connection.identity, first_name='Anonymous', last_name='User')
+            patient.save()
+            # create new sms.User
+            user = self.finduser(patient.address, patient.first_name, patient.last_name)
+            # schedule task to start now
+            d = {'task': 'Appointment Request','user': user.identity, 'args':{'appt_type':'bone density scan'}, 'schedule_date': datetime.now() }
+            tasks.taskscheduler.schedule(d)
+            # mark message handled so nothing is returned to the user
+            return True
 
 
     def send(self, identity, identityType, text):
