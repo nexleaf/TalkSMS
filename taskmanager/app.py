@@ -48,7 +48,10 @@ class App(rapidsms.apps.base.AppBase):
             # create new sms.User
             user = self.finduser(patient.address, patient.first_name, patient.last_name)
             # schedule task to start now
-            d = {'task': 'Appointment Request','user': user.identity, 'args':{'appt_type':'bone density scan'}, 'schedule_date': datetime.now() }
+            d = {'task': 'Appointment Request',
+                 'user': user.identity,
+                 'args':{'appt_type':'bone density scan'},
+                 'schedule_date': datetime.now() }
             tasks.taskscheduler.schedule(d)
             # mark message handled so nothing is returned to the user
             return True

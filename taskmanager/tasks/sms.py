@@ -12,16 +12,18 @@ class Response(object):
             raise ValueError('Response.match_regex OR Response.match_callback must be set')
         self.match_callback = None
         self.match_regex = None
+
         if match_callback is not None:
             if not match_callback(text):
                 raise ValueError('Respones.match_vallback must not return None or False for Response.text')
             self.match_callback = match_callback
+
         if match_regex is not None:
             if not re.compile(match_regex).match(text):
                 raise ValueError('Response.match_regex must re.match() Response.text')
             self.match_regex = re.compile(match_regex)
-        self.text = text
 
+        self.text = text
 
         if not label:
             raise ValueError('Response requires a unique label string.')
