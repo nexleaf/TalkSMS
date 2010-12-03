@@ -9,6 +9,8 @@ from datetime import datetime
 def schedule(newtask):
     try:
         print 'in taskscheduler.schedule():'
+        print 'newtask: %s', newtask
+
 
         if 'session_id' in newtask:
             session = Session.objects.get(pk=newtask['session_id'])

@@ -36,25 +36,32 @@ class App(rapidsms.apps.base.AppBase):
         self.debug('in App.handle(): message type: %s, message.text: %s', type(message),  message.text)
 
         # is user in db?
-        knownuser = Patient.objects.filter(address=message.connection.identity)
+        #knownuser = Patient.objects.filter(address=message.connection.identity)
 
-        if knownuser:
-            response = self.tm.recv(message)
-            message.respond(response)
-        else:
-            # create a new patient
-            patient = Patient(address=message.connection.identity, first_name='Anonymous', last_name='User')
-            patient.save()
-            # create new sms.User
-            user = self.finduser(patient.address, patient.first_name, patient.last_name)
-            # schedule task to start now
-            d = {'task': 'Appointment Request',
-                 'user': user.identity,
-                 'args':{'appt_type':'bone density scan'},
-                 'schedule_date': datetime.now() }
-            tasks.taskscheduler.schedule(d)
-            # mark message handled so nothing is returned to the user
+        #if knownuser:
+        response = self.tm.recv(message)
+
+        if response is None:
+            # if response is None, a user-initiated task has been scheduled to start immediately.
+            # so the message is handled, return true
             return True
+        else:
+            message.respond(response)
+            
+        # else:
+        #     # create a new patient
+        #     patient = Patient(address=message.connection.identity, first_name='Anonymous', last_name='User')
+        #     patient.save()
+        #     # create new sms.User
+        #     user = self.finduser(patient.address, patient.first_name, patient.last_name)
+        #     # schedule task to start now
+        #     d = {'task': 'Appointment Request',
+        #          'user': user.identity,
+        #          'args':{'appt_type':'bone density scan'},
+        #          'schedule_date': datetime.now() }
+        #     tasks.taskscheduler.schedule(d)
+        #     # mark message handled so nothing is returned to the user
+        #     return True
 
 
     def send(self, identity, identityType, text):
@@ -168,6 +175,34 @@ class App(rapidsms.apps.base.AppBase):
         self.debug('in app.session_close():')
         session.save()
 
+
+    def knownuser(self, message):
+        return Patient.objects.filter(address=message.connection.identity)
+
+
+    def createdbuserandtask(self, message):
+        print 'in app.createuserandtask:'
+        # is the user in the db?
+        knownuser = self.knownuser(message)
+        print 'knownuser: %s' % knownuser
+        # if not, add anonymous one.  
+        if not knownuser:
+            patient = Patient(address=message.connection.identity, first_name='Anonymous', last_name='User')
+            patient.save()
+            print 'created new patient in db. patient: %s' % patient
+        else:
+            patient = knownuser
+            print 'there is a knownuser. patient: %s' % patient
+            
+        # create new sms.User
+        smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
+        # schedule task to start now
+        d = {'task': 'Appointment Request',
+             'user': smsuser.identity,
+             'args':{'appt_type':'bone density scan'},
+             'schedule_date': datetime.now() }
+        tasks.taskscheduler.schedule(d)
+        
 
     def finduser(self, identity=None, firstname=None, lastname=None):
         self.debug('in App.finduser(): identity: %s, firstname: %s, lastname: %s', identity, firstname, lastname)

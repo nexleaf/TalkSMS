@@ -456,20 +456,16 @@ class TaskManager(object):
         nid = self.numbers.match(rmessage.text)
         
         if not nid:
-            # there was no msgid, send err back up to 3 or 4 times...
-            # TODO: 8/4: this will be inserted into the db...
-            self.log.debug('no msgid found in user response, rmessage.connection.identity %s' % rmessage.connection.identity)
-            peer = rmessage.connection.identity
-            if peer not in self.badmsgs:
-                self.badmsgs[peer] = 0
-            elif self.badmsgs[peer] < TaskManager.TRYS:  
-                self.badmsgs[peer] += 1
-            else:
-                self.log.error('repeated responses with missing msgid...should we drop the interaction?')
-            self.log.debug('self.badmsgs: %s' % self.badmsgs)
 
-            response = '\"%s\" was not understood. Please prepend the message id number to your response.' %\
-                       rmessage.text.splitlines()[0].strip()           
+            # is this a user-initiated task or a reply with a forgotten msgid? uits replying with a known keyword is one sol'n...
+            self.app.createuserandtask(rmessage)
+            response = None
+                            
+#           need to also handle the case where a user has a statemachine running and replies but forgets to add the msgid.
+#           so, in the branchingtask, the fall-through case should be to return the message below
+#           alternatively, for mediabus, we could require an initial known token sent: if nid, and token, sched first mediabus task
+#            response = '\"%s\" was not understood. Please prepend the message id number to your response.' %\
+#                       rmessage.text.splitlines()[0].strip()           
         else:
             # strip off msgid and text from the repsonse 
             rmsgid = nid.group()
