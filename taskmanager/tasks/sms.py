@@ -458,7 +458,7 @@ class TaskManager(object):
         if not nid:
 
             # is this a user-initiated task or a reply with a forgotten msgid? uits replying with a known keyword is one sol'n...
-            self.app.createuserandtask(rmessage)
+            self.app.createdbuserandtask(rmessage)
             response = None
                             
 #           need to also handle the case where a user has a statemachine running and replies but forgets to add the msgid.

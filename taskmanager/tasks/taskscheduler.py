@@ -14,11 +14,17 @@ def schedule(newtask):
 
         if 'session_id' in newtask:
             session = Session.objects.get(pk=newtask['session_id'])
-            print 'session: %s', session
+            print 'session: %s' % session
             process = session.process
         else:
             session = None
-            process = None
+
+        if 'process_id' in newtask:
+            process = Process.objects.get(pk=newtask['process_id'])
+            print 'process: %s' % process
+        else:
+            print 'no process_id in newtask while adding this scheduled task'
+            # do nothing...
             
         if 'args' in newtask:
             arguments = json.dumps(newtask['args'])

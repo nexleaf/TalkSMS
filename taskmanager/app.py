@@ -35,34 +35,15 @@ class App(rapidsms.apps.base.AppBase):
     def handle (self, message):
         self.debug('in App.handle(): message type: %s, message.text: %s', type(message),  message.text)
 
-        # is user in db?
-        #knownuser = Patient.objects.filter(address=message.connection.identity)
-
-        #if knownuser:
         response = self.tm.recv(message)
 
         if response is None:
             # if response is None, a user-initiated task has been scheduled to start immediately.
-            # so the message is handled, return true
+            # message is handled, return true
             return True
         else:
             message.respond(response)
             
-        # else:
-        #     # create a new patient
-        #     patient = Patient(address=message.connection.identity, first_name='Anonymous', last_name='User')
-        #     patient.save()
-        #     # create new sms.User
-        #     user = self.finduser(patient.address, patient.first_name, patient.last_name)
-        #     # schedule task to start now
-        #     d = {'task': 'Appointment Request',
-        #          'user': user.identity,
-        #          'args':{'appt_type':'bone density scan'},
-        #          'schedule_date': datetime.now() }
-        #     tasks.taskscheduler.schedule(d)
-        #     # mark message handled so nothing is returned to the user
-        #     return True
-
 
     def send(self, identity, identityType, text):
         self.debug('in App.send():')
@@ -111,8 +92,8 @@ class App(rapidsms.apps.base.AppBase):
         for st in [t + r*s for r in range(1,reps+1)]:
             self.debug('scheduling a reminder to fire after %s', st)
             schedule = EventSchedule(callback=cb, minutes=ALL, callback_kwargs=d, start_time=st, count=1)
-            schedule.save()               
-                      
+            schedule.save()                                    
+
 
     # support cens gui
     def log_message(self, session_id, message, outgoing):
@@ -185,7 +166,7 @@ class App(rapidsms.apps.base.AppBase):
         # is the user in the db?
         knownuser = self.knownuser(message)
         print 'knownuser: %s' % knownuser
-        # if not, add anonymous one.  
+        # if not, add anonymous one to db.  
         if not knownuser:
             patient = Patient(address=message.connection.identity, first_name='Anonymous', last_name='User')
             patient.save()
@@ -196,12 +177,24 @@ class App(rapidsms.apps.base.AppBase):
             
         # create new sms.User
         smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
+
+        # create a new process
+        np = Process(
+            name='Dexa Scan',
+            creator=None,
+            patient=patient
+            )
+        np.save()
+
+        
         # schedule task to start now
         d = {'task': 'Appointment Request',
              'user': smsuser.identity,
-             'args':{'appt_type':'bone density scan'},
+             'process_id': np.id,
+             'args': {'appt_type':'bone density scan'},
              'schedule_date': datetime.now() }
         tasks.taskscheduler.schedule(d)
+
         
 
     def finduser(self, identity=None, firstname=None, lastname=None):
@@ -288,8 +281,7 @@ class App(rapidsms.apps.base.AppBase):
         # cols from task_serializedtasks
         keys = ['t_args', 't_plob', 's_msgid', 's_done', 's_node', 's_event', 's_mbox', 'm_sentcount', 'i_initialnode', 'u_nextmsgid']
 
-        # what happens when there is more than one match here?
-        # .get() raises an exection if there is more than one match
+         # .get() raises an exection if there is more than one match
         st = SerializedTasks.objects.get(pk=s_session_id)
         self.debug('cur st: %s', st)
 
@@ -370,8 +362,6 @@ class App(rapidsms.apps.base.AppBase):
             
             # restore statemachine state, sm.msgid is incremented to st.u_nextmsgid at init
             sm = sms.StateMachine(self, smsuser, t, st.s_session_id)
-            #sm.msgid = st.s_msgid
-            #assert(smsuser.msgid.peek() == st.u_nextmsgid)
             self.debug('\nsm.msgid (from smsuser.msgid.count): %s\nsmsuser.msgid.peek(): %s\nst.u_nextmsgid: %s\n',
                        smsuser.msgid.count, smsuser.msgid.peek(), st.u_nextmsgid)
             sm.done = False if st.s_done==0 else True
@@ -383,7 +373,6 @@ class App(rapidsms.apps.base.AppBase):
             sm.event = st.s_event
             sm.mbox = None if st.s_mbox is '' else st.s_mbox
             
-            # hmm, should we add a list of the new sm's to tm after the loop?
             self.tm.addstatemachines(sm)
         
 
