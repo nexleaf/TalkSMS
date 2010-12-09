@@ -452,20 +452,15 @@ class TaskManager(object):
     def recv(self, rmessage):
         self.log.debug('in TaskManager.recv(): ')
 
+        # fall-through response string
         response = 'Response not understood. Please prepend the message id number to your response.'
         nid = self.numbers.match(rmessage.text)
         
         if not nid:
-
-            # is this a user-initiated task or a reply with a forgotten msgid? uits replying with a known keyword is one sol'n...
-            self.app.createdbuserandtask(rmessage)
-            response = None
+            # user-initiated-task? see if the message contains a keyword associated with a task
+            if self.app.createdbuserandtask(rmessage):
+                response = None
                             
-#           need to also handle the case where a user has a statemachine running and replies but forgets to add the msgid.
-#           so, in the branchingtask, the fall-through case should be to return the message below
-#           alternatively, for mediabus, we could require an initial known token sent: if nid, and token, sched first mediabus task
-#            response = '\"%s\" was not understood. Please prepend the message id number to your response.' %\
-#                       rmessage.text.splitlines()[0].strip()           
         else:
             # strip off msgid and text from the repsonse 
             rmsgid = nid.group()

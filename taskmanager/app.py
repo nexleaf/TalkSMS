@@ -163,38 +163,101 @@ class App(rapidsms.apps.base.AppBase):
 
     def createdbuserandtask(self, message):
         print 'in app.createuserandtask:'
-        # is the user in the db?
+
+        # select taskmanager_task.name, taskmanager_tasktemplate.name, taskmanager_tasktemplate.arguments
+        # from taskmanager_task, taskmanager_tasktemplate
+        # where taskmanager_task.id = taskmanager_tasktemplate.task_id;
+
+        # name = Appointment Request
+        # name = Dexa Scan
+        # arguments = {"appt_type": "bone density scan"}
+
+        # name = Appointment Request
+        # name = Cardiology Provider Appt.
+        # arguments = {"appt_type": "heart doctor appt."}
+
+        # name = Appointment Request
+        # name =  Cardiology Test (Echo)
+        # arguments = {"appt_type": "Echo heart test"}
+
+        # name = Appointment Request
+        # name = Cardiology Test (EKG)
+        # arguments = {"appt_type": "EKG heart test"}
+
+        # name = Appointment Request
+        # name = Blood Lab Request
+        # arguments = {"appt_type": "blood test", "requires_fasting": "?CheckboxInput"}
+                                                              
+
+        # if message has a keyword, determine taskname, tasktype, args
+        if message.text.lower().find('dexa') > -1:
+            taskname='Appointment Request'
+            tasktype='Dexa Scan'
+            arguments = {'appt_type': 'bone density scan'}
+
+        elif message.text.lower().find('provider') > -1 or message.text.lower().find('heart') > -1:
+            taskname='Appointment Request'
+            tasktype='Cardiology Provider Appt.'
+            arguments = {'appt_type': 'heart doctor appt.'}
+
+        elif message.text.lower().find('echo') > -1:
+            taskname='Appointment Request'
+            tasktype='Cardiology Test (Echo)'
+            arguments = {'appt_type': 'Echo heart test'}
+
+        elif message.text.lower().find('ekg') > -1:
+            taskname='Appointment Request'
+            tasktype='Cardiology Test (EKG)'
+            arguments = {'appt_type': 'EKG heart test'}
+
+        elif message.text.lower().find('blood') > -1 and message.text.lower().find('fasting') > -1:        
+            taskname='Appointment Request'
+            tasktype='Blood Lab Request'
+            arguments = {'appt_type': 'blood test', 'requires_fasting': 1}
+
+        elif message.text.lower().find('blood') > -1:        
+            taskname='Appointment Request'
+            tasktype='Blood Lab Request'
+            arguments = {'appt_type': 'blood test', 'requires_fasting': 0}
+
+        else:
+            # not creating a task
+            return False
+
+        # define patient
+        #     is the user in the db?
         knownuser = self.knownuser(message)
         print 'knownuser: %s' % knownuser
-        # if not, add anonymous one to db.  
+        #     if not, add anonymous one to db.  
         if not knownuser:
             patient = Patient(address=message.connection.identity, first_name='Anonymous', last_name='User')
             patient.save()
             print 'created new patient in db. patient: %s' % patient
         else:
-            patient = knownuser
+            patient = knownuser[0]
             print 'there is a knownuser. patient: %s' % patient
             
-        # create new sms.User
+        # find or create new sms.User
         smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
-
+        
         # create a new process
         np = Process(
-            name='Dexa Scan',
+            name=tasktype,
             creator=None,
             patient=patient
             )
         np.save()
-
         
         # schedule task to start now
-        d = {'task': 'Appointment Request',
+        d = {'task': taskname,
              'user': smsuser.identity,
              'process_id': np.id,
-             'args': {'appt_type':'bone density scan'},
+             'args': arguments,
              'schedule_date': datetime.now() }
         tasks.taskscheduler.schedule(d)
 
+        # created and scheduled a task. message was handled, return True to handler.
+        return True
         
 
     def finduser(self, identity=None, firstname=None, lastname=None):
