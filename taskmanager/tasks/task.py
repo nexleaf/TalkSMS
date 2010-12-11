@@ -11,7 +11,14 @@ class Task(object):
     def setinteraction(self, graph, initialnode, label):
         self.interaction = sms.Interaction(graph=graph, initialnode=initialnode, label=label)
 
-                                                      
+    
+    @staticmethod
+    def get_user_init_string():
+        return None
+
+    @staticmethod
+    def determine_task_type(message):
+        return None
 
 
         

@@ -96,6 +96,55 @@ class AppointmentRequest(Task):
         self.args = pb['args']
 
 
+        
+    @staticmethod
+    def determine_task_type(message):
+        # parses message and tries to figure out the sub task type?
+        # if message has a keyword, determine taskname, tasktype, args
+
+        
+        
+        if message.text.lower().find('dexa') > -1:
+            taskname='Appointment Request'
+            tasksubtype='Dexa Scan'
+            arguments = {'appt_type': 'bone density scan'}
+
+        elif message.text.lower().find('provider') > -1 or message.text.lower().find('heart') > -1:
+            taskname='Appointment Request'
+            tasksubtype='Cardiology Provider Appt.'
+            arguments = {'appt_type': 'heart doctor appt.'}
+
+        elif message.text.lower().find('echo') > -1:
+            taskname='Appointment Request'
+            tasksubtype='Cardiology Test (Echo)'
+            arguments = {'appt_type': 'Echo heart test'}
+
+        elif message.text.lower().find('ekg') > -1:
+            taskname='Appointment Request'
+            tasksubtype='Cardiology Test (EKG)'
+            arguments = {'appt_type': 'EKG heart test'}
+
+        elif message.text.lower().find('blood') > -1 and message.text.lower().find('fasting') > -1:        
+            taskname='Appointment Request'
+            tasksubtype='Blood Lab Request'
+            arguments = {'appt_type': 'blood test', 'requires_fasting': 1}
+
+        elif message.text.lower().find('blood') > -1:        
+            taskname='Appointment Request'
+            tasksubtype='Blood Lab Request'
+            arguments = {'appt_type': 'blood test', 'requires_fasting': 0}
+
+        else:
+            # no match
+            return None
+
+        return (taskname, tasksubtype, arguments)
+
+    @staticmethod
+    def get_user_init_string():
+        return "apptreq"
+
+
     @staticmethod
     def match_date(msgtxt):
         pdt = parsedatetime.Calendar()
@@ -180,4 +229,3 @@ class AppointmentRequest(Task):
         except Exception as e:
             print '%s' % (e)
 
-        

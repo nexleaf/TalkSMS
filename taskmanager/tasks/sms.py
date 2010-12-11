@@ -452,8 +452,7 @@ class TaskManager(object):
     def recv(self, rmessage):
         self.log.debug('in TaskManager.recv(): ')
 
-        # fall-through response string
-        response = 'Response not understood. Please prepend the message id number to your response.'
+        response = 'Command not understood.'
         nid = self.numbers.match(rmessage.text)
         
         if not nid:
@@ -462,6 +461,9 @@ class TaskManager(object):
                 response = None
                             
         else:
+            # fall-through response string
+            response = 'Response not understood. Please prepend the message id number to your response.'
+            
             # strip off msgid and text from the repsonse 
             rmsgid = nid.group()
             a,b,rtext = rmessage.text.partition(str(rmsgid))
@@ -479,7 +481,7 @@ class TaskManager(object):
             # then, find the correct statemachine
             for sm in self.uism:
                 
-                # i am whale, this is my ahab
+                # sanity check out to log
                 self.log.debug('            sm.user.identity: \'%s\',', sm.user.identity)
                 self.log.debug('rmessage.connection.identity: \'%s\';', rmessage.connection.identity)
                 self.log.debug('sm.msgid: \'%s\'; rmsgid: \'%s\'', sm.msgid, rmsgid)

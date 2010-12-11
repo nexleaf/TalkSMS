@@ -163,67 +163,33 @@ class App(rapidsms.apps.base.AppBase):
 
     def createdbuserandtask(self, message):
         print 'in app.createuserandtask:'
+        
+        firstword = str(message.text).lower().split(None, 1)[0]        
+        alltasks = Task.objects.all()
+        print alltasks
 
-        # select taskmanager_task.name, taskmanager_tasktemplate.name, taskmanager_tasktemplate.arguments
-        # from taskmanager_task, taskmanager_tasktemplate
-        # where taskmanager_task.id = taskmanager_tasktemplate.task_id;
+        taskname, tasksubtype, arguments = None,None,None
+        
+        for t in alltasks:
+            # get user initiated task keyword
+            fn = "%s.%s.get_user_init_string()" % (t.module, t.className)
+            #print fn
+            keyword = eval(fn)
+            print 'keyword: %s; type(keyword): %s' % (keyword, type(keyword))
+            print 'firstword: %s; type(firstword): %s' % (firstword, type(firstword))
 
-        # name = Appointment Request
-        # name = Dexa Scan
-        # arguments = {"appt_type": "bone density scan"}
+            if firstword == keyword:
+                fn = "%s.%s.determine_task_type(message)" % (t.module, t.className)
+                print 'evaluating ttype'
+                ttype = eval(fn)
+                if ttype:
+                    taskname, tasksubtype, arguments = ttype
+                    break
 
-        # name = Appointment Request
-        # name = Cardiology Provider Appt.
-        # arguments = {"appt_type": "heart doctor appt."}
-
-        # name = Appointment Request
-        # name =  Cardiology Test (Echo)
-        # arguments = {"appt_type": "Echo heart test"}
-
-        # name = Appointment Request
-        # name = Cardiology Test (EKG)
-        # arguments = {"appt_type": "EKG heart test"}
-
-        # name = Appointment Request
-        # name = Blood Lab Request
-        # arguments = {"appt_type": "blood test", "requires_fasting": "?CheckboxInput"}
-                                                              
-
-        # if message has a keyword, determine taskname, tasktype, args
-        if message.text.lower().find('dexa') > -1:
-            taskname='Appointment Request'
-            tasktype='Dexa Scan'
-            arguments = {'appt_type': 'bone density scan'}
-
-        elif message.text.lower().find('provider') > -1 or message.text.lower().find('heart') > -1:
-            taskname='Appointment Request'
-            tasktype='Cardiology Provider Appt.'
-            arguments = {'appt_type': 'heart doctor appt.'}
-
-        elif message.text.lower().find('echo') > -1:
-            taskname='Appointment Request'
-            tasktype='Cardiology Test (Echo)'
-            arguments = {'appt_type': 'Echo heart test'}
-
-        elif message.text.lower().find('ekg') > -1:
-            taskname='Appointment Request'
-            tasktype='Cardiology Test (EKG)'
-            arguments = {'appt_type': 'EKG heart test'}
-
-        elif message.text.lower().find('blood') > -1 and message.text.lower().find('fasting') > -1:        
-            taskname='Appointment Request'
-            tasktype='Blood Lab Request'
-            arguments = {'appt_type': 'blood test', 'requires_fasting': 1}
-
-        elif message.text.lower().find('blood') > -1:        
-            taskname='Appointment Request'
-            tasktype='Blood Lab Request'
-            arguments = {'appt_type': 'blood test', 'requires_fasting': 0}
-
-        else:
-            # not creating a task
+        if not all( (taskname, tasksubtype, arguments) ):
+            # couldn't find a matching task
             return False
-
+        
         # define patient
         #     is the user in the db?
         knownuser = self.knownuser(message)
@@ -242,7 +208,7 @@ class App(rapidsms.apps.base.AppBase):
         
         # create a new process
         np = Process(
-            name=tasktype,
+            name=tasksubtype,
             creator=None,
             patient=patient
             )
