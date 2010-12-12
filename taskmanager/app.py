@@ -62,13 +62,16 @@ class App(rapidsms.apps.base.AppBase):
             self.debug('problem sending outgoing message: createdbkend?:%s; createdconn?:%s; exception: %s', createdbkend, createdconn, e)
 
 
-    def resend(self, msgid=None, identity=None):
+    #def resend(self, msgid=None, identity=None):
+    def resend(self, tasknamespace=None, identity=None):
         self.debug('in App.resend():')        
-        sm = self.findstatemachine(msgid, identity)
+        #sm = self.findstatemachine(msgid, identity)
+        sm = self.findstatemachine(tasknamespace, identity)
 
         if sm and not sm.done:
             assert(isinstance(sm, sms.StateMachine)==True)
-            assert(sm.msgid==msgid)
+            #assert(sm.msgid==msgid)
+            assert(sm.tasknamespace_expect==tasknamespace)
 
             self.debug('statemachine: %s; currentnode: %s; statemachine.node.sentcount: %s', sm, sm.node, sm.node.sentcount)
             sm.kick()
@@ -106,8 +109,10 @@ class App(rapidsms.apps.base.AppBase):
         nm.save()
 
 
-    def findstatemachine(self, msgid, identity):
-        self.debug('in App.findstatemachine(): msgid:%s, identity: %s', msgid, identity)
+    #def findstatemachine(self, msgid, identity):
+    def findstatemachine(self, tasknamespace, identity):
+        #self.debug('in App.findstatemachine(): msgid:%s, identity: %s', msgid, identity)
+        self.debug('in App.findstatemachine(): tasknamespace:%s, identity: %s', tasknamespace, identity)
 
         cl = []
         statemachine = None
@@ -116,7 +121,8 @@ class App(rapidsms.apps.base.AppBase):
             if sm.done:
                 self.tm.scrub(sm)
             else:
-                if (sm.msgid == msgid) and (sm.user.identity == identity):
+                #if (sm.msgid == msgid) and (sm.user.identity == identity):
+                if (sm.tasknamespace_expect == tasknamespace) and (sm.user.identity == identity):
                     self.debug('found candidate: %s', sm)
                     cl.append(sm)
                 
@@ -288,14 +294,17 @@ class App(rapidsms.apps.base.AppBase):
              't_pblob' : sm.task.save(),
              's_app' : self,
              's_session_id' : session.id,
-             's_msgid' : sm.msgid,
+             #'s_msgid' : sm.msgid,
+             's_msgid' : sm.tasknamespace_expect,
              's_done' : sm.done,
              's_node' : sm.node.label,
              's_event' : sm.event,
              's_mbox' : sm.mbox if sm.mbox else '',
              'm_sentcount' : sm.node.sentcount,
              'i_initialnode' : sm.task.interaction.initialnode.label,
-             'u_nextmsgid' : smsuser.msgid.peek() }
+             # Not sure what to do here reguarding the tasknamespace change... need to see where this is used
+             #'u_nextmsgid' : smsuser.msgid.peek() }
+             'u_nextmsgid' : smsuser.tasknamespace_expect }
         st = SerializedTasks(**d)
         st.save()        
 
@@ -360,16 +369,16 @@ class App(rapidsms.apps.base.AppBase):
             patient = Patient.objects.get(pk=session[0].patient_id)
             smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
             # need to be careful about setting the users's msgid...
-            smsuser.msgid.reset(st.s_msgid-1)
-
-            self.debug('resetting user.msgid: %s', st.s_msgid-1)
+            #smsuser.msgid.reset(st.s_msgid-1)
+            
+            #self.debug('resetting user.msgid: %s', st.s_msgid-1)
 
             # make sure smsusers in memory are reset to their last state
             if st.s_done:
                 self.debug('\n\npassing restore of dead st: %s', st)
                 # if there is no live statemachine, we want to restore user to the state it was after this sm was created.
                 # (helps when there are no live statemachines at restore)
-                self.debug('increment user id %s from: %s to: %s', smsuser.identity, smsuser.msgid.count, smsuser.msgid.next())
+                #self.debug('increment user id %s from: %s to: %s', smsuser.identity, smsuser.msgid.count, smsuser.msgid.next())
                 continue
 
             self.debug('\n\nrestoring st: %s', st)
@@ -391,13 +400,14 @@ class App(rapidsms.apps.base.AppBase):
             
             # restore statemachine state, sm.msgid is incremented to st.u_nextmsgid at init
             sm = sms.StateMachine(self, smsuser, t, st.s_session_id)
-            self.debug('\nsm.msgid (from smsuser.msgid.count): %s\nsmsuser.msgid.peek(): %s\nst.u_nextmsgid: %s\n',
-                       smsuser.msgid.count, smsuser.msgid.peek(), st.u_nextmsgid)
+            #self.debug('\nsm.msgid (from smsuser.msgid.count): %s\nsmsuser.msgid.peek(): %s\nst.u_nextmsgid: %s\n',
+            #           smsuser.msgid.count, smsuser.msgid.peek(), st.u_nextmsgid)
             sm.done = False if st.s_done==0 else True
             # find correct node in graph which matches the label we saved
             for node in sm.interaction.graph.keys():
                 if node.label is st.s_node:
                     sm.node = node
+                    sm.tasknamespace_expect = node.label
             sm.node.sentcount = st.m_sentcount
             sm.event = st.s_event
             sm.mbox = None if st.s_mbox is '' else st.s_mbox
@@ -430,4 +440,5 @@ def callresend(router, **kwargs):
     app.debug('router: %s; received: kwargs:%s' % (router, kwargs))
 
     # rapidsms.contrib.scheduler marks each entry with EventSchedule.active=0 after it's fired.
-    app.resend(kwargs['msgid'], kwargs['identity'])
+    #app.resend(kwargs['msgid'], kwargs['identity'])
+    app.resend(kwargs['tasknamespace'], kwargs['identity'])

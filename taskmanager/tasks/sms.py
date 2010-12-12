@@ -192,7 +192,7 @@ class User(object):
             self.label = label
 
         # user.msgid.next() get's the next msgid
-        self.msgid = Cycle(User.MAXMSGID)
+        #self.msgid = Cycle(User.MAXMSGID)
 
     @property
     def username(self):
@@ -222,7 +222,9 @@ class StateMachine(object):
           
           # msgid is incremented only during init (here), and in handle_response() when a message node has a non-empty responselist,
           # (that is, when we need to send a new message to track)
-          self.msgid = self.user.msgid.next()
+          #self.msgid = self.user.msgid.next()
+          self.tasknamespace_override = task.tasknamespace_override
+          self.tasknamespace_expect = self.interaction.initialnode.label
           self.done = False
 
           # current node in the interaction graph
@@ -236,7 +238,8 @@ class StateMachine(object):
 
 
       def send_message(self):     
-          self.log.debug('in StateMachine.send_message(): self.event: %s; self.msgid: %s', self.event, self.msgid)
+          #self.log.debug('in StateMachine.send_message(): self.event: %s; self.msgid: %s', self.event, self.msgid)
+          self.log.debug('in StateMachine.send_message(): self.event: %s; self.tasknamespace_expect: %s', self.event, self.tasknamespace_expect)
           self.log.debug('self.node: %s, self.node.sentcount: %s' % ( str(self.node), self.node.sentcount ))
 
           if self.node.sentcount < StateMachine.MAXSENTCOUNT:
@@ -255,13 +258,15 @@ class StateMachine(object):
                       d = {'callback':'taskmanager.app.callresend',
                            'minutes':StateMachine.TIMEOUT,
                            'repetitions':StateMachine.MAXSENTCOUNT,
-                           'msgid':self.msgid,
+                           #'msgid':self.msgid,
+                           'tasknamespace': self.tasknamespace_expect,
                            'identity':self.user.identity }                 
                       self.app.schedule_response_reminders(d)
 
               # this is the only place sentcount should be incremnted
               self.node.sentcount += 1
-              self.log.debug('incremented self.node.sentcout: %s; self.msgid: %s', self.node.sentcount, self.msgid)
+              #self.log.debug('incremented self.node.sentcout: %s; self.msgid: %s', self.node.sentcount, self.msgid)
+              self.log.debug('incremented self.node.sentcout: %s; self.tasknamespace_expect: %s', self.node.sentcount, self.tasknamespace_expect)
               
           else:
 
@@ -313,8 +318,15 @@ class StateMachine(object):
 
               # increment msgid every time we handle a response
               # this throws away a msgid periodically but, we don't guarentee an ordered sequence, just an increasing one...
-              self.msgid = self.user.msgid.next()
-              self.log.debug('incrementing self.msgid to: %s', self.msgid)
+              #self.msgid = self.user.msgid.next()
+              #self.log.debug('incrementing self.msgid to: %s', self.msgid)
+              ##
+              ## MAJOR CHANGE... this is where we determine what the next expected tasknamespace string is
+              ##
+              if self.tasknamespace_override != None:
+                  self.tasknamespace_expect = self.tasknamespace_override
+              else:
+                  self.tasknamespace_expect = self.node.label
 
               # call response obj's developer defined callback
               if hasattr(response, 'callback'):
@@ -410,6 +422,7 @@ class TaskManager(object):
         
     @staticmethod
     def build_send_str(node, msgid):
+        # TODO: replace 'msgid' with 'tasknamespace'
         text = ''.join(node.question)
 
         if (node.sentcount > 1):
@@ -429,20 +442,25 @@ class TaskManager(object):
     def send(self, statemachine):
         # edge-case: sentcount<=max since it's called after last inc of sentcount
         if statemachine.node.sentcount <= StateMachine.MAXSENTCOUNT:
-            text = TaskManager.build_send_str(statemachine.node, statemachine.msgid)
+            #text = TaskManager.build_send_str(statemachine.node, statemachine.msgid)
+            # We set the next tasknamespace to look for in the handler that figured out what the next node was
+            text = TaskManager.build_send_str(statemachine.node, statemachine.tasknamespace_expect)
             self.log.debug('in TaskManager.send(): node.sentcount: %s, preparing to send text: %s', statemachine.node.sentcount, text)
             self.app.log_message(statemachine.session_id, text, True)
             self.app.send(statemachine.user.identity, statemachine.user.identityType, text)
 
             # save current state
             d = {'t_pblob' : statemachine.task.save(),
-                 's_msgid' : statemachine.msgid,
+                 #'s_msgid' : statemachine.msgid,
+                 's_msgid' : statemachine.tasknamespace_expect,
                  's_done' : statemachine.done,
                  's_node' : statemachine.node.label,
                  's_event': statemachine.event,
                  's_mbox' : statemachine.mbox if statemachine.mbox else '',
                  'm_sentcount' : statemachine.node.sentcount,
-                 'u_nextmsgid' : statemachine.user.msgid.peek() }
+                 # Not sure what to do here reguarding the tasknamespace change... need to see where this is used
+                 #'u_nextmsgid' : statemachine.user.msgid.peek() }
+                 'u_nextmsgid' : statemachine.tasknamespace_expect }
             self.app.savetask(statemachine.session_id, **d)
 
         else:
@@ -453,26 +471,35 @@ class TaskManager(object):
         self.log.debug('in TaskManager.recv(): ')
 
         response = 'Command not understood.'
-        nid = self.numbers.match(rmessage.text)
+        # we are now maching for for the tasknamespace and the 
+        #nid = self.numbers.match(rmessage.text)
+        # need to look for exceptions here... what if they send an empty string?
+        firststring = rmessage.text.lower().split(None, 1)[0]
         
-        if not nid:
-            # user-initiated-task? see if the message contains a keyword associated with a task
-            if self.app.createdbuserandtask(rmessage):
-                response = None
+        
+        #if not nid:
+        # Always check for UIT
+        # user-initiated-task? see if the message contains a keyword associated with a task
+        if self.app.createdbuserandtask(rmessage):
+            response = None
                             
         else:
             # fall-through response string
             response = 'Response not understood. Please prepend the message id number to your response.'
             
             # strip off msgid and text from the repsonse 
-            rmsgid = nid.group()
-            a,b,rtext = rmessage.text.partition(str(rmsgid))
-            assert(b==rmsgid)
+            #rmsgid = nid.group()
+            rtasknamespace = firststring
+            #a,b,rtext = rmessage.text.partition(str(rmsgid))
+            a,b,rtext = rmessage.text.partition(str(rtasknamespace))
+            assert(b==rtasknamespace)
             rtext = rtext.splitlines()[0].strip()
+            #self.log.debug('found msgid in response' +\
+            #              'rmsgid: \'%s\'; rtext: \'%s\'; peer: \'%s\'' % (rmsgid, rtext, rmessage.connection.identity))           
             self.log.debug('found msgid in response' +\
-                      'rmsgid: \'%s\'; rtext: \'%s\'; peer: \'%s\'' % (rmsgid, rtext, rmessage.connection.identity))           
+                           'rmsgid: \'%s\'; rtext: \'%s\'; peer: \'%s\'' % (rtasknamespace, rtext, rmessage.connection.identity))           
 
-            # first, exfoliate
+            # first, remote task if done
             for sm in self.uism:
                 if sm.done:
                     self.log.debug('preparing to delete statemachine: %s', sm)
@@ -480,23 +507,33 @@ class TaskManager(object):
 
             # then, find the correct statemachine
             for sm in self.uism:
+
+                # NOTE: We probably need some types of checks here... if the developer has set the same label in various
+                # tasks then we may have problems
                 
                 # sanity check out to log
                 self.log.debug('            sm.user.identity: \'%s\',', sm.user.identity)
                 self.log.debug('rmessage.connection.identity: \'%s\';', rmessage.connection.identity)
-                self.log.debug('sm.msgid: \'%s\'; rmsgid: \'%s\'', sm.msgid, rmsgid)
+                #self.log.debug('sm.msgid: \'%s\'; rmsgid: \'%s\'', sm.msgid, rmsgid)
+                self.log.debug('sm.tasknamespace_expect: \'%s\'; rtasknamespace: \'%s\'', sm.tasknamespace_expect, rtasknamespace)
                 self.log.debug('##### sm.user.identity==rmessage.connection.identity -> %s', sm.user.identity==rmessage.connection.identity)
-                self.log.debug('#####                          sm.msgid==int(rmsgid) -> %s', sm.msgid==int(rmsgid) )
+                #self.log.debug('#####                          sm.msgid==int(rmsgid) -> %s', sm.msgid==int(rmsgid) )
+                self.log.debug('#####                          sm.tasknamespace_expect==int(rtasknamespace) -> %s', sm.tasknamespace_expect==rtasknamespace )
 
-                if (sm.user.identity == rmessage.connection.identity) and (sm.msgid == int(rmsgid)) :
+                #if (sm.user.identity == rmessage.connection.identity) and (sm.msgid == int(rmsgid)) :
+                if (sm.user.identity == rmessage.connection.identity) and (sm.tasknamespace_expect == rtasknamespace) :
                     self.log.debug('found statemachine: %s', sm)
 
                     # support cens gui
                     # log received msg
-                    self.app.log_message(sm.session_id, rmsgid + ' ' + rtext, False)
+                    #self.app.log_message(sm.session_id, rmsgid + ' ' + rtext, False)
+                    self.app.log_message(sm.session_id, rtasknamespace + ' ' + rtext, False)
 
                     sm.kick(rtext)
-                    response = TaskManager.build_send_str(sm.node, sm.msgid)
+                    # kick calls wait_for_response(), then calls handle_response(),
+                    # which will set the sm.tasknamespace_expect to the next nodes expected string
+                    #response = TaskManager.build_send_str(sm.node, sm.msgid)
+                    response = TaskManager.build_send_str(sm.node, sm.tasknamespace_expect)
                     self.log.debug('and response = %s' % response)
 
                     # support cens gui
@@ -505,12 +542,15 @@ class TaskManager(object):
 
                     # save current state
                     d = {'t_pblob' : sm.task.save(),
-                         's_msgid' : sm.msgid,
+                         #'s_msgid' : sm.msgid,
+                         's_msgid' : sm.tasknamespace_expect,
                          's_done' : sm.done,
                          's_node' : sm.node.label,
                          's_event': sm.event,
                          's_mbox' : sm.mbox if sm.mbox else '',
                          'm_sentcount' : sm.node.sentcount,
+                         # Not sure what to do here reguarding the tasknamespace change... need to see where this is used
+                         #'u_nextmsgid' : sm.user.msgid.peek() }
                          'u_nextmsgid' : sm.user.msgid.peek() }
                     self.app.savetask(sm.session_id, **d)
 
