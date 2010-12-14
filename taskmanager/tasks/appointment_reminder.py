@@ -8,12 +8,12 @@ import json, re
 from django.template.loader import render_to_string
 from taskmanager.models import *
 
-from task import Task
+from task import BaseTask
 
-class AppointmentReminder(Task):
+class AppointmentReminder(BaseTask):
     def __init__(self, user, args=None):
 
-        Task.__init__(self)
+        BaseTask.__init__(self)
 
         self.args = args
 

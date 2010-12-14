@@ -10,13 +10,13 @@ from django.template.loader import render_to_string
 from taskmanager.models import *
 import taskscheduler
 
-from task import Task
+from task import BaseTask
 
-class AppointmentFollowup(Task):
+class AppointmentFollowup(BaseTask):
     
     def __init__(self, user, args=None):
 
-        Task.__init__(self)
+        BaseTask.__init__(self)
         
         self.args = args
         print 'in appointmentrequest: self.args: %s; type(self.args):%s' % (self.args, type(self.args))
