@@ -15,6 +15,7 @@
 		<script type="text/javascript" src="/static/taskmanager/jquery.calendrical.js"></script>
 		<script type="text/javascript" src="/static/taskmanager/fullcalendar.min.js"></script>
 		<script type="text/javascript" src="/static/taskmanager/jquery.blockUI.js"></script>
+		<script type="text/javascript" src="/static/taskmanager/jquery.nap-1.0.0.js"></script>
 		<script type="text/javascript" src="/static/taskmanager/facebox/facebox.js"></script>
 
 		<link rel="stylesheet" type="text/css" href="/static/taskmanager/calendrical.css" />
@@ -149,8 +150,9 @@
 			}
 		}
 
-		// bind up the context chooser
+
 		$(document).ready(function() {
+			// bind up the context chooser
 			$("#context_switcher_btn").click(function() {
 				var $me = $(this);
 				var $dialog = $("#context_switcher_dialog");
@@ -173,7 +175,18 @@
 					$dialog.hide();
 				}
 			});
+
+			// auto-refresh the page if the user is idle for some amount of time
+			$(document).nap(
+				function() {
+					// happens when we fall asleep
+					window.location.reload(true);
+				}
+			);
+			$.fn.nap.standbyTime = 30; // refresh every 30 seconds
 		});
+
+
 
 		{% block scripts %}{% endblock %}
 		</script>

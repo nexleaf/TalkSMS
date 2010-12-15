@@ -1,0 +1,5 @@
+{% if pending_alerts|length > 0 %}
+<div class="alert_HUD" style="display: inline;">
+&#149; <a href="/taskmanager/services/{{ serviceid }}/alerts">{{ pending_alerts|length }} pending alert(s)</a>
+</div>
+{% endif %}

@@ -89,3 +89,25 @@ def patient_details(request, patientid):
         'patient': Patient.objects.get(pk=patientid)
     }
     return render_to_response('dashboard/details/patient.html', context, context_instance=RequestContext(request))
+
+def patient_command(request, patientid):
+    if request.method == "POST" and request.is_ajax():
+        command = request.POST.get('command')
+        patient = Patient.objects.get(pk=patientid)
+
+        # dispatch on different commands
+        if command == "halt":
+            # set patient's status to halted
+            patient.halted = True
+            patient.save()
+            return HttpResponse("REQUIRES_REFRESH")
+        elif command == "unhalt":
+            # set patient's status to un-halted
+            patient.halted = False
+            patient.save()
+            return HttpResponse("REQUIRES_REFRESH")
+
+        return HttpResponse("CMD_NOT_FOUND")
+
+    # and render the default view
+    return process_details(request, processid)

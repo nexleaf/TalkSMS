@@ -38,6 +38,7 @@ class Patient(models.Model):
     first_name = models.CharField(max_length=80)
     last_name = models.CharField(max_length=80)
     clinicians = models.ManyToManyField(Clinician)
+    halted = models.BooleanField(default=False)
 
     def __unicode__(self):
         return "%s, %s (%s)" % (self.last_name, self.first_name, self.address)

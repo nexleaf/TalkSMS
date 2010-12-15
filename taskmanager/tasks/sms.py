@@ -17,9 +17,9 @@ class Response(object):
                 raise ValueError('Respones.match_vallback must not return None or False for Response.text')
             self.match_callback = match_callback
         if match_regex is not None:
-            if not re.compile(match_regex).match(text):
+            if not re.compile(match_regex, re.I).match(text):
                 raise ValueError('Response.match_regex must re.match() Response.text')
-            self.match_regex = re.compile(match_regex)
+            self.match_regex = re.compile(match_regex, re.I)
         self.text = text
         self.label = label
         if callback:
@@ -159,7 +159,7 @@ class StateMachine(object):
       # max number of times a message is sent when expecting a reply
       MAXSENTCOUNT = 3
       # time to resend a message in minutes
-      TIMEOUT = 120
+      TIMEOUT = 60*24
       
       def __init__(self, app, user, interaction, session_id, label=''):
           self.app = app
@@ -246,44 +246,84 @@ class StateMachine(object):
           rnew = self.mbox
           self.log.debug('rnew: \'%s\'', rnew)
 
-          # did the new response match anything in the responselist?
-          matches = [r.match(rnew) for r in self.node.responselist]
-          matchcount = len(matches) - (matches.count(None) + matches.count(False))
-          self.log.debug('matches: %s', matches)          
-          self.log.debug('matchcount: %s', matchcount)          
+          # FAISAL: quick hack to evaluate responses in order and choose the first one that matches
+          
+          # iterate through the possible responses
+          # execute the first non-false, non-None match and break
+          # if nothing matches, post a debug message and quit
 
-          if matchcount == 1:
+          foundmatch = False # if this is still false, we didn't find anything ;_;
 
-              self.log.debug('found response match')
-              # find index for the match
-              i = [m is not None and m is not False for m in matches].index(True)
-              response = self.node.responselist[i]
- 
-              # advance to the next node
-              self.node = self.interaction.mapsTo(self.node, response)
-              self.log.debug('advanced current node to: %s', self.node)
+          for response in self.node.responselist:
+              result = response.match(rnew)
 
-              # increment msgid every time we handle a response
-              # this throws away a msgid periodically but, we don't guarentee an ordered sequence, just an increasing one...
-              self.msgid = self.user.msgid.next()
-              self.log.debug('incrementing self.msgid to: %s', self.msgid)
+              if result != False and result != None:
+                  foundmatch = True
+                  
+                  self.log.debug('found response match')
+     
+                  # advance to the next node
+                  self.node = self.interaction.mapsTo(self.node, response)
+                  self.log.debug('advanced current node to: %s', self.node)
 
-              # call response obj's developer defined callback
-              if hasattr(response, 'callback'):
-                  self.log.debug('calling %s callback', response)
-                  # send back rnew, session_id
-                  response.kwargs['response'] = rnew
-                  response.kwargs['session_id'] = self.session_id
-                  result = response.callback(*response.args, **response.kwargs)
-                  self.log.debug('callback result: %s.', result)
-                            
-          elif matchcount == 0: 
+                  # increment msgid every time we handle a response
+                  # this throws away a msgid periodically but, we don't guarentee an ordered sequence, just an increasing one...
+                  self.msgid = self.user.msgid.next()
+                  self.log.debug('incrementing self.msgid to: %s', self.msgid)
 
-              self.log.debug('response did not match expected list of responses, attempting to resend')
+                  # call response obj's developer defined callback
+                  if hasattr(response, 'callback'):
+                      self.log.debug('calling %s callback', response)
+                      # send back rnew, session_id
+                      response.kwargs['response'] = rnew
+                      response.kwargs['session_id'] = self.session_id
+                      result = response.callback(*response.args, **response.kwargs)
+                      self.log.debug('callback result: %s.', result)
+                  
+                  # ...and quit looking for more
+                  break
 
-          else:
+          if not foundmatch:
+            self.log.debug('response did not match expected list of responses, attempting to resend')
 
-              self.log.debug('rnew: %s, matched more than one response in response list, attempting to resend', rnew)
+##          # did the new response match anything in the responselist?
+##          matches = [r.match(rnew) for r in self.node.responselist]
+##          matchcount = len(matches) - (matches.count(None) + matches.count(False))
+##          self.log.debug('matches: %s', matches)          
+##          self.log.debug('matchcount: %s', matchcount)          
+##
+##          if matchcount == 1:
+##
+##              self.log.debug('found response match')
+##              # find index for the match
+##              i = [m is not None and m is not False for m in matches].index(True)
+##              response = self.node.responselist[i]
+## 
+##              # advance to the next node
+##              self.node = self.interaction.mapsTo(self.node, response)
+##              self.log.debug('advanced current node to: %s', self.node)
+##
+##              # increment msgid every time we handle a response
+##              # this throws away a msgid periodically but, we don't guarentee an ordered sequence, just an increasing one...
+##              self.msgid = self.user.msgid.next()
+##              self.log.debug('incrementing self.msgid to: %s', self.msgid)
+##
+##              # call response obj's developer defined callback
+##              if hasattr(response, 'callback'):
+##                  self.log.debug('calling %s callback', response)
+##                  # send back rnew, session_id
+##                  response.kwargs['response'] = rnew
+##                  response.kwargs['session_id'] = self.session_id
+##                  result = response.callback(*response.args, **response.kwargs)
+##                  self.log.debug('callback result: %s.', result)
+##                            
+##          elif matchcount == 0: 
+##
+##              self.log.debug('response did not match expected list of responses, attempting to resend')
+##
+##          else:
+##
+##              self.log.debug('rnew: %s, matched more than one response in response list, attempting to resend', rnew)
 
           # processed input, now reply
           self.event = 'SEND_MESSAGE'
@@ -365,9 +405,9 @@ class TaskManager(object):
         text = ''.join(node.question)
 
         if (node.sentcount > 1):
-          text += ' (resending, reply was misunderstood or dropped)'
+          text += ' (resending, attempt %d of %d)' % (node.sentcount, TaskManager.TRYS)
         if node.responselist:
-          text += ' Prepend \"%d\" to your reply.' % (msgid)
+          text += ' Type \"%d\" before your reply.' % (msgid)
 
         print 'in TaskManager.build_send_str(): node.sentcount: %s' % node.sentcount
 
@@ -392,7 +432,7 @@ class TaskManager(object):
     def recv(self, rmessage):
         self.log.debug('in TaskManager.recv(): ')
 
-        response = 'Response not understood. Please prepend the message id number to your response.'
+        response = 'Response not understood. Please type the message id number before your response.'
         nid = self.numbers.match(rmessage.text)
         
         if not nid:
@@ -408,7 +448,7 @@ class TaskManager(object):
                 self.log.error('repeated responses with missing msgid...should we drop the interaction?')
             self.log.debug('self.badmsgs: %s' % self.badmsgs)
 
-            response = '\"%s\" was not understood. Please prepend the message id number to your response.' %\
+            response = '\"%s\" was not understood. Please type the the message id number before your response.' %\
                        rmessage.text.splitlines()[0].strip()           
         else:
             # strip off msgid and text from the repsonse 

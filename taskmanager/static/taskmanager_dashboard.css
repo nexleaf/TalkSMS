@@ -42,12 +42,14 @@ td.column  { height:     352px; }
 }
 
 /* for the lefthand list from which we choose patients, tasks, etc. */
+
 .column .itemlist { background: white; }
-.chooser a { display: block; padding: 10px; text-decoration: none; color: black; }
-.chooser a:hover { background: #E3EFF3; }
+.chooser a.choosable { display: block; padding: 10px; text-decoration: none; color: black; }
+.chooser a.choosable:hover { background: #E3EFF3; }
+.chooser a.choosable .address_box { font-size: 10px; color: #555; }
 .chooser a.selected { background: #0D436F; color: white; font-weight: bold; }
-.chooser a .address_box { font-size: 10px; color: #555; }
 .chooser a.selected .address_box { color: #ccc; }
+.chooser a.selected:hover { background: #0D436F; color: white; font-weight: bold; }
 
 /* page structure */
 .structural { width: 100%; }

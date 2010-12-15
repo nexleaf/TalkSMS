@@ -130,6 +130,11 @@ def check_schedule():
     
     for sched_task in tasks[0:1]:
         agent = Agent(reactor)
+
+        # ensure that the user is not halted -- if they are, we can't execute this task :\
+        if sched_task.patient.halted:
+            # print "ERROR: Cannot execute task: %s (%d), user is in the halt status" % (sched_task.task.name, sched_task.id)
+            continue
         
         print "Executing task: %s (%d)" % (sched_task.task.name, sched_task.id)
 

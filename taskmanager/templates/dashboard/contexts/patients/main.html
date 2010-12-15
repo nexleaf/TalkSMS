@@ -28,14 +28,18 @@ $(document).ready(function() {
 	{% if selected_patientid %}
 	<ul class="tabber" id="tabnav">
 		<li class="tab2"><a href="/taskmanager/patients/{{ selected_patientid }}/processes/"><img src="/static/taskmanager/fugue/icons/gear.png" border="0" class="iconified_tab" />Processes</a></li>
+		<!--
 		<li class="tab3"><a href="/taskmanager/patients/{{ selected_patientid }}/tasks/"><img src="/static/taskmanager/fugue/icons/clock-frame.png" border="0" class="iconified_tab" />Tasks</a></li>
+		-->
 		<li class="tab1"><a href="/taskmanager/patients/{{ selected_patientid }}/history/"><img src="/static/taskmanager/fugue/icons/balloon-white.png" border="0" class="iconified_tab" />History</a></li>
 		<li class="tab4"><a href="/taskmanager/patients/{{ selected_patientid }}/calendar/"><img src="/static/taskmanager/fugue/icons/calendar.png" border="0" class="iconified_tab" />Calendar</a></li>
 	</ul>
 	{% else %}
 	<ul class="tabber" id="tabnav">
 		<li class="tab2"><a href="javascript:void(0)"><img src="/static/taskmanager/fugue/icons/gear.png" border="0" class="iconified_tab" />Processes</a></li>
+		<!--
 		<li class="tab3"><a href="javascript:void(0)"><img src="/static/taskmanager/fugue/icons/clock-frame.png" border="0" class="iconified_tab" />Tasks</a></li>
+		-->
 		<li class="tab1"><a href="javascript:void(0)"><img src="/static/taskmanager/fugue/icons/balloon-white.png" border="0" class="iconified_tab" />History</a></li>
 		<li class="tab4"><a href="javascript:void(0)"><img src="/static/taskmanager/fugue/icons/calendar.png" border="0" class="iconified_tab" />Calendar</a></li>
 	</ul>
@@ -53,11 +57,24 @@ $(document).ready(function() {
 		</div>
 
 		<div class="itemlist chooser" style="min-height: 300px;">
+			<!--
+			NOTE: appending a timestamp to the end of the
+			patients' details view URL is a hack for IE not reloading
+			the details page even if it changed. :(
+			-->
 			{% for patient in patients %}
-			<a class="{% if patient.id|lower == selected_patientid|lower %}selected{% endif %} choosable" href="/taskmanager/patients/{{ patient.id }}/{{ section|default:'processes' }}">
-				{{ patient.first_name }} {{ patient.last_name }}
-				<div class="address_box">{{ patient.address }}</div>
-			</a>
+			<div style="position: relative;">
+				<a class="{% if patient.id|lower == selected_patientid|lower %}selected{% endif %} choosable" href="/taskmanager/patients/{{ patient.id }}/{{ section|default:'processes' }}">
+					{{ patient.first_name }} {{ patient.last_name }}
+					<div class="address_box">{{ patient.address }}</div>
+				</a>
+
+				<div class="task_list" style="position: absolute; right: 5px; width: 50px; padding: 4px 8px; top: 8px;">
+					<div class="command">
+						<a href="/taskmanager/patients/{{ patient.id }}/details/?tm={% now "U" %}" rel="facebox">details</a>
+					</div>
+				</div>
+			</div>
 			{% endfor %}
 		</div>
 	</div>
@@ -114,9 +131,13 @@ $(document).ready(function() {
 					<input type="text"  name="last_name" />
 				</td></tr>
 
-				<tr><td class="label">Email Address:</td><td>
-					<input type="text"  name="address" />
-				</td></tr>
+				<tr>
+					<td class="label" valign="top">Contact Address:</td>
+					<td>
+						<input type="text"  name="address" />
+						<div style="font-size: 10px; color: #555; font-weight: normal;">(prefix phone #s with "+1")</div>
+					</td>
+				</tr>
 
 				<tr><td class="label">&nbsp;</td><td align="right"><input type="submit" name="add_patient_btn" value="Create"></td></tr>
 			</table>

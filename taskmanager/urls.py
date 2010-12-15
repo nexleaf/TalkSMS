@@ -63,6 +63,7 @@ urlpatterns = patterns('',
     (r'^taskmanager/patients/(?P<patientid>\d+)/details/?$', details.patient_details),
 
     # detail view commands
+    (r'^taskmanager/patients/(?P<patientid>\d+)/command/?$', details.patient_command),
     (r'^taskmanager/processes/(?P<processid>\d+)/command/?$', details.process_command),
     (r'^taskmanager/tasks/(?P<taskid>\d+)/command/?$', details.scheduledtask_command),
     (r'^taskmanager/sessions/(?P<sessionid>\d+)/command/?$', details.session_command),

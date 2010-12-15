@@ -39,6 +39,7 @@ def processes(request, patientid):
         'pending_processes': Process.objects.get_pending_processes().filter(patient__id=patientid).order_by('add_date'),
         'current_processes': Process.objects.get_current_processes().filter(patient__id=patientid).order_by('add_date'),
         'completed_processes': Process.objects.get_completed_processes().filter(patient__id=patientid).order_by('add_date'),
+        'selected_patient': Patient.objects.get(pk=patientid)
         }
     
     merge_contextuals(field_vars, request, patientid)
@@ -181,8 +182,15 @@ def add_scheduled_process(request):
         patient = Patient.objects.get(pk=int(request.POST['patient']))
 
         p = pdt.Calendar()
-        parsed_date = p.parse(request.POST['scheduled_date'] + " " + request.POST['scheduled_time'])
-        parsed_datetime = datetime.fromtimestamp(time.mktime(parsed_date[0]))
+        command = request.POST['command']
+
+        # check if they chose to run it now or to run it later
+        if command == "Schedule":
+            parsed_date = p.parse(request.POST['scheduled_date'] + " " + request.POST['scheduled_time'])
+            parsed_datetime = datetime.fromtimestamp(time.mktime(parsed_date[0]))
+        elif command == "Run Now":
+            parsed_date = p.parse("today now")
+            parsed_datetime = datetime.fromtimestamp(time.mktime(parsed_date[0]))
 
         # collect the custom arguments into a dict
         custom_args = {}
@@ -234,7 +242,7 @@ def get_tasktemplate_fields(request, tasktemplateid):
     arguments = json.loads(template.arguments)
     response = HttpResponse()
 
-    row_template = "\t<tr><td class=\"label\">%(label)s:</td><td>%(control)s</td></tr>\n"
+    row_template = "\t<tr><td class=\"label\" style=\"width: 100px;\">%(label)s:</td><td>%(control)s</td></tr>\n"
 
     response.write("<table class=\"vertical nested_table\">\n")
 

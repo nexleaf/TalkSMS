@@ -34,24 +34,45 @@ class AppointmentReminder(object):
             # resolves to:
             #{% load parse_date %}Your {{ args.appt_type }} is approaching. Reply 'cancel' to cancel it or 'ok' to confirm.
             q1 = render_to_string('tasks/appts/reminder.html', {'patient': self.patient, 'args': self.args})
-        r1 = sms.Response('ok', match_regex=r'ok|OK|Ok')
+            
+        r1 = sms.Response('ok', match_regex=r'ok')
         r2 = sms.Response('cancel', match_regex=r'cancel|no', callback=self.cancel)
-        m1 = sms.Message(q1, [r1,r2])
+        r_stop = sms.Response('stop', match_regex=r'stop', label='stop', callback=self.appointment_cancelled_alert)
+        m1 = sms.Message(q1, [r1, r2, r_stop])
     
         # m2
         q2 = 'See you soon.'
         m2 = sms.Message(q2, [])
         
         # m3
-        q3 = 'Ok, canceling appointment as you requested.'
+        q3 = 'Thank you for letting us know. Remember to also actually cancel your appointment with your care provider.'
         m3 = sms.Message(q3, [])
+
+        # message sent when the user decides to stop
+        m_stop = sms.Message('Ok, stopping messages now. Thank you for participating.', [])
         
-        self.graph = { m1: [m2, m3],
+        self.graph = { m1: [m2, m3, m_stop],
                        m2: [],
-                       m3: [] }
+                       m3: [],
+                       m_stop: [] }
         
         self.interaction = sms.Interaction(self.graph, m1, self.__class__.__name__ + '_interaction')
 
+        
+    def appointment_cancelled_alert(self, *args, **kwargs):
+        response = kwargs['response']
+        session_id = kwargs['session_id']
+
+        # set the halted status on the patient since they sent a stop
+        if self.patient:
+            self.patient.halted = True
+
+        alert_args = {}
+        if self.patient and session_id is not None:
+            alert_args['url'] = '/taskmanager/patients/%d/history/#session_%d' % (self.patient.id, session_id)
+        alert_args.update(args)
+        Alert.objects.add_alert("Messages Stopped", arguments=alert_args, patient=self.patient)
+        
 
     def cancel(self, *args, **kwargs):
         session_id = kwargs['session_id']

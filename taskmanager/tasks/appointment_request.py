@@ -34,50 +34,98 @@ class AppointmentRequest(object):
         else:
             raise ValueError('unknown type given for user: %s' % user)
 
-        # m1
-        # resolves to: 
-        # Hi {{ patient.first_name }}. Please schedule a {{ args.appt_type }}. 
-        # Reply with a time (like 10/1/2012 16:30:00), or 'stop' to quit. 
-        q1 = render_to_string('tasks/appts/request.html', {'patient': self.patient, 'args': self.args})
-        r1 = sms.Response('stop', match_regex=r'stop|STOP', label='stop', callback=self.appointment_cancelled_alert)
-        #r2 = sms.Response('8/30/2012 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.schedule_reminders)
-        r2 = sms.Response('8/30/2012 16:30:00', match_callback=AppointmentRequest.match_date, label='datetime', callback=self.schedule_reminders)
-        m1 = sms.Message(q1, [r1,r2])
-        # m2
-        q2 = 'Ok, stopping messages now. Thank you for participating.'
-        m2 = sms.Message(q2, [])
-        # m3
-        # resolves to:
-        # Great, we set up 3 appt. reminders and a followup for you.
-        q3 = render_to_string('tasks/appts/response.html', {'args': self.args})
-        m3 = sms.Message(q3, [])
-        
-        self.graph = { m1: [m2, m3],
-                       m2: [],
-                       m3: [] }
+        # (old) r2 = sms.Response('8/30/2012 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.schedule_reminders)
 
-        self.interaction = sms.Interaction(self.graph, m1, self.__class__.__name__ + '_interaction')
+        # first we set up all the expected responses
+        # idealy this'd be directly before each message, but most of these responses are repeated in this case
+        r_stop = sms.Response('stop', match_regex=r'stop', label='stop', callback=self.appointment_cancelled_alert)
+        r_need_date_and_time = sms.Response('asdf', match_callback=AppointmentRequest.match_non_date_and_time, label='non_datetime')
+        r_stalling = sms.Response('ok', match_regex=r'ok', label='stalling')
+        r_valid_appt = sms.Response('today at 3pm', match_callback=AppointmentRequest.match_date_and_time, label='datetime', callback=self.schedule_reminders)
+        
+        # lists of responses that'll be used for every node that takes the same input as the initial
+        initial_responses = [r_stop, r_stalling, r_need_date_and_time, r_valid_appt]
+
+        # message sent asking the user to schedule an appt. and to text us back the date and time
+        m_initial = sms.Message(
+            render_to_string('tasks/appts/request.html', {'patient': self.patient, 'args': self.args}),
+            initial_responses)
+        
+        # message sent when the user decides to stop
+        m_stop = sms.Message('Ok, stopping messages now. Thank you for participating.', [])
+
+        # message sent if the user doesn't include both date and time
+        # this replicates the expected responses of the initial node because it basically is the initial node
+        m_need_date_and_time = sms.Message(
+            'Please respond with both the date and the time of the appointment you scheduled (e.g. 1/15/2011 8:30pm).',
+            initial_responses)
+
+        # message sent when the user delays us by saying 'ok'; we prompt them for more info when they're ready
+        # this replicates the expected responses of the initial node because it basically is the initial node
+        m_stalling = sms.Message(
+            'Please respond with both the date and the time of the appointment when you\'ve scheduled it, or \'stop\' if you don\'t want to schedule one now.',
+            initial_responses)
+        
+        # message sent when the user sends us a valid date and time
+        # the response that leads here actually sets up the appointments
+        m_valid_appt = sms.Message(render_to_string('tasks/appts/response.html', {'args': self.args}), [])
+
+        # lists of transitions that'll be used for every node that takes the same input as the initial
+        # this needs to match up pairwise with initial_responses :\
+        initial_transitions = [m_stop, m_stalling, m_need_date_and_time, m_valid_appt]
+        
+        self.graph = { m_initial: initial_transitions,
+                       m_stop: [],
+                       m_need_date_and_time: initial_transitions,
+                       m_stalling: initial_transitions,
+                       m_valid_appt: []
+                       }
+
+        self.interaction = sms.Interaction(self.graph, m_initial, self.__class__.__name__ + '_interaction')
 
     
     @staticmethod
-    def match_date(msgtxt):
+    def match_date_or_time(msgtxt):
         pdt = parsedatetime.Calendar()
         (res, retcode) = pdt.parse(msgtxt)
         if retcode == 0:
             return False
         else:
             return res
-            
+        
+    @staticmethod
+    def match_non_date_and_time(msgtxt):
+        pdt = parsedatetime.Calendar()
+        (res, retcode) = pdt.parse(msgtxt)
+        if retcode == 3:
+            return False
+        else:
+            return res
+        
+    @staticmethod
+    def match_date_and_time(msgtxt):
+        pdt = parsedatetime.Calendar()
+        (res, retcode) = pdt.parse(msgtxt)
+        if retcode != 3:
+            return False
+        else:
+            return res
+        
     
     def appointment_cancelled_alert(self, *args, **kwargs):
         response = kwargs['response']
         session_id = kwargs['session_id']
 
+        # set the halted status on the patient since they sent a stop
+        if self.patient:
+            self.patient.halted = True
+            self.patient.save()
+
         alert_args = {}
         if self.patient and session_id is not None:
             alert_args['url'] = '/taskmanager/patients/%d/history/#session_%d' % (self.patient.id, session_id)
         alert_args.update(args)
-        Alert.objects.add_alert("Appointment Canceled", arguments=alert_args, patient=self.patient)
+        Alert.objects.add_alert("Messages Stopped", arguments=alert_args, patient=self.patient)
 
 
 
@@ -115,20 +163,17 @@ class AppointmentRequest(object):
             b = t+2*s  # second is 10 minutes after
             c = t+3*s  # third is 15 after
             f = t+4*s  # follow sent 20 hour after
-        else: 
-            # actually, -3, -2, -1 days for reminders; +1 day for followup
-            # NOTE: If we are one or two days before appointment, need to do the right thing here
-            # so they do not get too many reminders
-##          a = t-3*s  # two days before
-##          b = t-2*s  # one night before
-##          c = t-s+i  # morning of appointment
-##          f = t+s+i  # followup, one day after...
-
+        else:
             # faisal: commented out the above; we're going to use parsedatetime instead for readability
-            a = datetime(*pdt.parse("2 days ago", t)[0][0:7]) # two days before
-            b = datetime(*pdt.parse("1 day ago at 9:00pm", t)[0][0:7]) # one night before
-            c = datetime(*pdt.parse("at 8:00am", t)[0][0:7]) # morning of appointment
+            a = datetime(*pdt.parse("2 days ago at 3:00pm", t)[0][0:7]) # two days before
+            b = datetime(*pdt.parse("1 day ago at 8:00pm", t)[0][0:7]) # one night before
+            c = datetime(*pdt.parse("2 hours ago", t)[0][0:7]) # two hours before appointment
             f = datetime(*pdt.parse("in 6 hours", t)[0][0:7]) # followup, six hours after
+
+            # check if the followup is going to be after 10pm -- if so, move it to 10am the next day
+            if f.hour >= 22:
+                f += timedelta(days=1)
+                f = f.replace(hour=10)
 
         # if 'schedule_date' is earlier than now, the scheduled event will be sent immediately
         

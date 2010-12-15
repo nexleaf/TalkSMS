@@ -22,27 +22,25 @@ class AppointmentFollowup(object):
         else:
             raise ValueError('unknown type given for user: %s' % user)
 
+        # (old) r2 = sms.Response('8/30/2010 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.reschedule_reminder)
 
-        # m1
-        # resolves to:
-        # How was your {{ args.appt_type }}? Reply with 'comment' and feedback; or a time (10/1/2020 16:30:00) to reschedule.
-        q1 = render_to_string('tasks/appts/followup.html', {'patient': self.patient, 'args': self.args})
-        r1 = sms.Response('comment', match_regex=r'(comment|COMMENT)', label='comment', callback=self.store_feedback)
-        #r2 = sms.Response('8/30/2010 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.reschedule_reminder)
-        r2 = sms.Response('8/30/2010 16:30:00', match_callback=AppointmentFollowup.match_date, label='datetime', callback=self.reschedule_reminder)
-        m1 = sms.Message(q1, [r1,r2])
+        r_feedback = sms.Response('feedback', match_regex=r'(feedback)', label='feedback', callback=self.store_feedback)
+        r_missed = sms.Response('missed', match_regex=r'(missed)', label='missed', callback=self.missed_appt)
 
-        # m2
-        q2 = 'Thank you for your feedback.'
-        m2 = sms.Message(q2, [])
+        # message asking them for feedback after their appointment
+        m1 = sms.Message(
+            render_to_string('tasks/appts/followup.html', {'patient': self.patient, 'args': self.args}),
+            [r_feedback, r_missed])
 
-        # m3
-        q3 = 'Ok, you will be sent a reminder to reschedule as you have requested.'
-        m3 = sms.Message(q3, [])
+        # message sent when user provides feedback in the form 'feedback <my message here>'
+        m_thanks = sms.Message('Thank you for your feedback.', [])
+
+        # message sent when user missed their appointment
+        m_missed = sms.Message('You will receive a new request to reschedule within a few days.', [])
         
-        self.graph = { m1: [m2, m3],
-                       m2: [],
-                       m3: [] }
+        self.graph = { m1: [m_thanks, m_missed],
+                       m_thanks: [],
+                       m_missed: [] }
 
         self.interaction = sms.Interaction(self.graph, m1, self.__class__.__name__ + '_interaction')
     
@@ -59,6 +57,9 @@ class AppointmentFollowup(object):
         comment = kwargs['response']
         session_id = kwargs['session_id']
 
+        # strip off the "feedback " prefix
+        comment =  comment[comment.index(" ")+1:]
+
         print 'patient feedback: %s' % (comment)
 
         alert_data = {'feedback': comment}
@@ -66,8 +67,19 @@ class AppointmentFollowup(object):
             alert_data['url'] = '/taskmanager/patients/%d/history/#session_%d' % (self.patient.id, session_id)
         alert_data.update(args)
         Alert.objects.add_alert("Appointment Feedback", arguments=alert_data, patient=self.patient)
-    
 
+    def missed_appt(self, *args, **kwargs):
+        session_id = kwargs['session_id']
+
+        print 'patient missed their appointment'
+
+        alert_data = {'feedback': comment}
+        if self.patient and session_id is not None:
+            alert_data['url'] = '/taskmanager/patients/%d/history/#session_%d' % (self.patient.id, session_id)
+        alert_data.update(args)
+        Alert.objects.add_alert("Appointment Missed", arguments=alert_data, patient=self.patient)
+    
+    # FAISAL: not currently used
     def reschedule_reminder(self, *args, **kwargs):
         ndatetime = kwargs['response']
         session_id = kwargs['session_id']
@@ -86,13 +98,13 @@ class AppointmentFollowup(object):
         #t = datetime.strptime(ndatetime, "%m/%d/%Y %H:%M:%S")
 
         # support cens gui: app_date used to display appointment time only
-        #                     Tuesday, 5:30pm, November 03, 2010
+        # Tuesday, 5:30pm, November 03, 2010
         appttime = t.strftime("%A %I:%M%p, %B %d, %Y")
         # make sure we pass on the appointment date
         self.args['appt_date'] = appttime
-        print 'self.args: %s' % (self.args)        
+        print 'self.args: %s' % (self.args)
 
-        # sched a reminder. 
+        # sched a reminder.
         d1 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': t,'session_id': session_id}
         #d1 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': t.isoformat,'session_id': session_id}
 
