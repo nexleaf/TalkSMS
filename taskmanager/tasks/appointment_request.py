@@ -95,7 +95,12 @@ class AppointmentRequest(BaseTask):
         pb = json.loads(pb_str)
         self.args = pb['args']
 
-        
+    # uits: user can send in this string to immediately schedule this task
+    @staticmethod
+    def get_user_init_string():
+        return "apptreq"
+
+    # uits: these strings narrow down the request to the type of task needed.
     @classmethod
     def determine_task_type(cls, message):
         # parses message and tries to figure out the sub task type
@@ -112,29 +117,19 @@ class AppointmentRequest(BaseTask):
                 print 'tt.task.id: %s' % tt.task.id
                 t = Task.objects.get(pk=tt.task.id)
                 print 't.name: %s; tt.name: %s, tt.arguments: %s' % (t.name, tt.name, tt.arguments)
-                arguments = tt.arguments
+                arguments = eval(tt.arguments)
 
                 if word is 'blood':
-                    option = "?CheckboxInput"
                     if msg.find('fasting') > -1:
-                        # buggy
-                        #arguments.replace(option, str(True), 1)
-                        arguments = {'appt_type': 'blood test', 'requires_fasting': 1}
+                        arguments['requires_fasting'] = 1
                     else:
-                        # buggy
-                        #arguments.replace(option, str(False), 1)
-                        arguments = {'appt_type': 'blood test', 'requires_fasting': 0}
+                        arguments['requires_fasting'] = 0
                         
-                print 't.name: %s; tt.name: %s; arguments: %s' % (str(t.name), str(tt.name), str(arguments))
-                return (str(t.name), str(tt.name), str(arguments))
+                print 't.name: %s; tt.name: %s; arguments: %s' % (t.name, tt.name, arguments)
+                return (t.name, tt.name, arguments)
 
         # no match found
         return None
-
-
-    @staticmethod
-    def get_user_init_string():
-        return "apptreq"
 
 
     @staticmethod
