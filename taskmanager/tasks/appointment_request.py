@@ -25,12 +25,12 @@ from taskmanager.models import *
 from parsedatetime import parsedatetime
 import taskscheduler
 
-from task import Task
+from task import BaseTask
 
-class AppointmentRequest(Task):
+class AppointmentRequest(BaseTask):
     def __init__(self, user, args=None):
 
-        Task.__init__(self)
+        BaseTask.__init__(self)
 
         self.args = args
 
@@ -95,54 +95,41 @@ class AppointmentRequest(Task):
         pb = json.loads(pb_str)
         self.args = pb['args']
 
-
-        
-    @staticmethod
-    def determine_task_type(message):
-        # parses message and tries to figure out the sub task type?
-        # if message has a keyword, determine taskname, tasktype, args
-
-        
-        
-        if message.text.lower().find('dexa') > -1:
-            taskname='Appointment Request'
-            tasksubtype='Dexa Scan'
-            arguments = {'appt_type': 'bone density scan'}
-
-        elif message.text.lower().find('provider') > -1 or message.text.lower().find('heart') > -1:
-            taskname='Appointment Request'
-            tasksubtype='Cardiology Provider Appt.'
-            arguments = {'appt_type': 'heart doctor appt.'}
-
-        elif message.text.lower().find('echo') > -1:
-            taskname='Appointment Request'
-            tasksubtype='Cardiology Test (Echo)'
-            arguments = {'appt_type': 'Echo heart test'}
-
-        elif message.text.lower().find('ekg') > -1:
-            taskname='Appointment Request'
-            tasksubtype='Cardiology Test (EKG)'
-            arguments = {'appt_type': 'EKG heart test'}
-
-        elif message.text.lower().find('blood') > -1 and message.text.lower().find('fasting') > -1:        
-            taskname='Appointment Request'
-            tasksubtype='Blood Lab Request'
-            arguments = {'appt_type': 'blood test', 'requires_fasting': 1}
-
-        elif message.text.lower().find('blood') > -1:        
-            taskname='Appointment Request'
-            tasksubtype='Blood Lab Request'
-            arguments = {'appt_type': 'blood test', 'requires_fasting': 0}
-
-        else:
-            # no match
-            return None
-
-        return (taskname, tasksubtype, arguments)
-
+    # uits: user can send in this string to immediately schedule this task
     @staticmethod
     def get_user_init_string():
         return "apptreq"
+
+    # uits: these strings narrow down the request to the type of task needed.
+    @classmethod
+    def determine_task_type(cls, message):
+        # parses message and tries to figure out the sub task type
+        # if message has a keyword, determine taskname, tasktype, args and return them
+        
+        print 'in appointment request.determin_task_type():'
+
+        keywords = ('dexa', 'provider', 'echo', 'ekg', 'blood')
+        msg = str(message.text).lower()
+
+        for word in keywords:
+            if msg.find(word) > -1:
+                tt = TaskTemplate.objects.filter(task__className__exact=cls.__name__, name__icontains=word)[0]
+                print 'tt.task.id: %s' % tt.task.id
+                t = Task.objects.get(pk=tt.task.id)
+                print 't.name: %s; tt.name: %s, tt.arguments: %s' % (t.name, tt.name, tt.arguments)
+                arguments = eval(tt.arguments)
+
+                if word is 'blood':
+                    if msg.find('fasting') > -1:
+                        arguments['requires_fasting'] = 1
+                    else:
+                        arguments['requires_fasting'] = 0
+                        
+                print 't.name: %s; tt.name: %s; arguments: %s' % (t.name, tt.name, arguments)
+                return (t.name, tt.name, arguments)
+
+        # no match found
+        return None
 
 
     @staticmethod

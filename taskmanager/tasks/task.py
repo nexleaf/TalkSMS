@@ -1,7 +1,7 @@
 import sms
 from taskmanager.tasks.models import SerializedTasks
 
-class Task(object):
+class BaseTask(object):
     """base class for tasks"""
     
     def __init__(self, graph=None, interaction=None, currentnode=None, tasknamespace_override):
