@@ -63,15 +63,15 @@ class App(rapidsms.apps.base.AppBase):
 
 
     #def resend(self, msgid=None, identity=None):
-    def resend(self, tasknamespace=None, identity=None):
+    def resend(self, tnsid=None, identity=None):
         self.debug('in App.resend():')        
         #sm = self.findstatemachine(msgid, identity)
-        sm = self.findstatemachine(tasknamespace, identity)
+        sm = self.findstatemachine(tnsid, identity)
 
         if sm and not sm.done:
             assert(isinstance(sm, sms.StateMachine)==True)
             #assert(sm.msgid==msgid)
-            assert(sm.tasknamespace_expect==tasknamespace)
+            assert(sm.tnsid==tnsid)
 
             self.debug('statemachine: %s; currentnode: %s; statemachine.node.sentcount: %s', sm, sm.node, sm.node.sentcount)
             sm.kick()
@@ -110,9 +110,9 @@ class App(rapidsms.apps.base.AppBase):
 
 
     #def findstatemachine(self, msgid, identity):
-    def findstatemachine(self, tasknamespace, identity):
+    def findstatemachine(self, tnsid, identity):
         #self.debug('in App.findstatemachine(): msgid:%s, identity: %s', msgid, identity)
-        self.debug('in App.findstatemachine(): tasknamespace:%s, identity: %s', tasknamespace, identity)
+        self.debug('in App.findstatemachine(): tnsid:%s, identity: %s', tnsid, identity)
 
         cl = []
         statemachine = None
@@ -122,7 +122,7 @@ class App(rapidsms.apps.base.AppBase):
                 self.tm.scrub(sm)
             else:
                 #if (sm.msgid == msgid) and (sm.user.identity == identity):
-                if (sm.tasknamespace_expect == tasknamespace) and (sm.user.identity == identity):
+                if (sm.tnsid == tnsid) and (sm.user.identity == identity):
                     self.debug('found candidate: %s', sm)
                     cl.append(sm)
                 
@@ -294,17 +294,13 @@ class App(rapidsms.apps.base.AppBase):
              't_pblob' : sm.task.save(),
              's_app' : self,
              's_session_id' : session.id,
-             #'s_msgid' : sm.msgid,
-             's_msgid' : sm.tasknamespace_expect,
+             's_tnsid' : sn.tnsid,
              's_done' : sm.done,
              's_node' : sm.node.label,
              's_event' : sm.event,
              's_mbox' : sm.mbox if sm.mbox else '',
              'm_sentcount' : sm.node.sentcount,
-             'i_initialnode' : sm.task.interaction.initialnode.label,
-             # Not sure what to do here reguarding the tasknamespace change... need to see where this is used
-             #'u_nextmsgid' : smsuser.msgid.peek() }
-             'u_nextmsgid' : smsuser.tasknamespace_expect }
+             'i_initialnode' : sm.task.interaction.initialnode.label}
         st = SerializedTasks(**d)
         st.save()        
 
@@ -317,7 +313,7 @@ class App(rapidsms.apps.base.AppBase):
     def savetask(self, s_session_id, **kwargs):
         self.debug('in App.savetask(): session id: %s, ' )
         # cols from task_serializedtasks
-        keys = ['t_args', 't_plob', 's_msgid', 's_done', 's_node', 's_event', 's_mbox', 'm_sentcount', 'i_initialnode', 'u_nextmsgid']
+        keys = ['t_args', 't_plob', 's_tnsid', 's_done', 's_node', 's_event', 's_mbox', 'm_sentcount', 'i_initialnode']
 
          # .get() raises an exection if there is more than one match
         st = SerializedTasks.objects.get(pk=s_session_id)
@@ -407,7 +403,12 @@ class App(rapidsms.apps.base.AppBase):
             for node in sm.interaction.graph.keys():
                 if node.label is st.s_node:
                     sm.node = node
-                    sm.tasknamespace_expect = node.label
+                    # sm.tnsid will be one of: sm.node.label OR sm.tasknamespace_overide
+                    if t.tasknamespace_override is not None:
+                        sm.tnsid = node.label
+                    else:
+                        sm.tnsid = t.tasknamespace_override
+                        
             sm.node.sentcount = st.m_sentcount
             sm.event = st.s_event
             sm.mbox = None if st.s_mbox is '' else st.s_mbox
@@ -441,4 +442,4 @@ def callresend(router, **kwargs):
 
     # rapidsms.contrib.scheduler marks each entry with EventSchedule.active=0 after it's fired.
     #app.resend(kwargs['msgid'], kwargs['identity'])
-    app.resend(kwargs['tasknamespace'], kwargs['identity'])
+    app.resend(kwargs['tnsid'], kwargs['identity'])
