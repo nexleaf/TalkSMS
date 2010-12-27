@@ -48,12 +48,15 @@ class AppointmentRequest(BaseTask):
         # Reply with a time (like 10/1/2012 16:30:00), or 'stop' to quit. 
         q1 = render_to_string('tasks/appts/request.html', {'patient': self.patient, 'args': self.args})
         r1 = sms.Response('stop', match_regex=r'stop|STOP', label='r1', callback=self.appointment_cancelled_alert)
+        
         #r2 = sms.Response('8/30/2012 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.schedule_reminders)
         r2 = sms.Response('8/30/2012 16:30:00', match_callback=AppointmentRequest.match_date, label='r2', callback=self.schedule_reminders)
         m1 = sms.Message(q1, [r1,r2], label='m1')
+        
         # m2
         q2 = 'Ok, stopping messages now. Thank you for participating.'
         m2 = sms.Message(q2, [], label='m2')
+        
         # m3
         # resolves to:
         # Great, we set up 3 appt. reminders and a followup for you.
@@ -65,7 +68,7 @@ class AppointmentRequest(BaseTask):
         graph = { m1: [m2, m3],
                   m2: [],
                   m3: [] }
-
+        
         # set self.graph
         self.graph = graph
         # set self.interaction

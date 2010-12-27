@@ -23,12 +23,14 @@ class SerializedTasks(models.Model):
     s_done = models.BooleanField(max_length=50)
     # label of the message node that's currently referenced in the statemachine as self.node.
     s_node = models.CharField(max_length=50)
-    s_event = models.CharField(max_length=50)
+    #s_event = models.CharField(max_length=50)
     # last response left in statemachine.mbox
-    s_mbox = models.CharField(max_length=150)
+    s_last_response = models.CharField(max_length=150)
 
     ## serialized attributes for sms.Message 
     m_sentcount = models.IntegerField(max_length=5)
+    m_retries = models.IntegerField(max_length=5)
+    m_timeout = models.IntegerField(max_length=8)
     
     ## serialized attributes for sms.Interaction
     # label for the initial node
@@ -45,9 +47,10 @@ class SerializedTasks(models.Model):
     s_tnsid: %s
     s_done: %s
     s_node: %s
-    s_event: %s
-    s_mbox: %s
-    m_sentcount: %s
+    s_last_response: %s
+    m_sent_count: %s
+    m_retries: %s
+    m_timeout: %s
     i_initialnode: %s
         """ % (self.t_args,\
                self.t_pblob,\
@@ -56,7 +59,8 @@ class SerializedTasks(models.Model):
                self.s_tnsid, \
                self.s_done,\
                self.s_node,\
-               self.s_event,\
-               self.s_mbox,\
-               self.m_sentcount,\
+               self.s_last_response,\
+               self.m_sentcount, \
+               self.m_retries,\
+               self.m_timeout,\
                self.i_initialnode)
