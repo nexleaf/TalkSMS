@@ -32,7 +32,7 @@ class App(rapidsms.apps.base.AppBase):
         self.debug('app.Taskmanager start time: %s', datetime.now())
 
 
-    def handle (self, message):
+    def handle(self, message):
         self.debug('in App.handle(): message type: %s, message.text: %s', type(message),  message.text)
 
         response = self.tm.recv(message)
@@ -48,7 +48,7 @@ class App(rapidsms.apps.base.AppBase):
             
 
     def send(self, identity, identityType, text):
-        # Used to send messages when get a timeout
+        # Used to send messages when get a timeout or from init
         self.debug('in App.send():')
         try:
             from rapidsms.models import Backend 
@@ -67,7 +67,7 @@ class App(rapidsms.apps.base.AppBase):
 
     # schedules reminder to respond messages
     def schedule_response_reminder(self, d):
-        self.debug('$$$$$$$$$$$$$$ in App.schedulecallback(): self.router: %s', self.router)
+        self.debug('in App.schedulecallback(): self.router: %s', self.router)
         cb = d.pop('callback')
         m = d.pop('minutes')
         reps = d.pop('repetitions')
@@ -84,19 +84,16 @@ class App(rapidsms.apps.base.AppBase):
         self.debug('scheduling a reminder to fire after %s at %s, id=%d', s, s+t, schedule.id)
 
     def clear_response_reminder(self, tnsid, identity):
-        self.debug('^^^^^^^^^^^^^^^^^^ in App.clear_response_reminder(): tnsid: %s, indetity: %s', tnsid, identity)
+        # anytime we want to clear out pending timeouts, this will deactivate them
+        self.debug('in App.clear_response_reminder(): looking to deactivate tnsid: %s, indetity: %s', tnsid, identity)
         clearlist = []
         for es in EventSchedule.objects.filter(active=True):
             checkdict = es.callback_kwargs
             if checkdict['tnsid'] == tnsid and checkdict['identity'] == identity:
-                self.debug('^^^^^^^^^^^^^^^^^^ deactivating %i %i', es.id, es.pk)
+                self.debug('deactivating %i %i', es.id, es.pk)
                 es.active=False
                 es.save()
-                
-        #for i in clearlist:
-        #    self.debug('^^^^^^^^^^^^^^^^^^ found schedule! deleting! %i', i)
-        #    EventSchedule.objects.get(pk=i).delete()
-        
+        # tried to make this do es.delete() but it did not seem to work!
     
     # support cens gui
     def log_message(self, session_id, message, outgoing):

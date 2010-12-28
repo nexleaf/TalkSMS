@@ -33,7 +33,10 @@ class Response(object):
             self.callback = callback
             self.args = args
             self.kwargs = kwargs
-
+        else:
+            self.callback = None
+                
+    
     def match(self, sometext):
         'return None if there is no match, and the MatchObject otherwise'
         if self.match_callback is not None:
@@ -48,11 +51,12 @@ class Response(object):
 
 class Message(object):
     # timeout in mins
-    DEFAULT_TIMEOUT = 1
+    DEFAULT_TIMEOUT = 30
     # retries
-    DEFAULT_RETRIES = 1
+    DEFAULT_RETRIES = 2
     
-    def __init__(self, question, responselist=[], retries=None, timeout=None, do_not_send=False, label=''):
+    def __init__(self, question, responselist=[], retries=None, timeout=None, do_not_send=False, \
+                 custom_message_callback=None, no_match_callback=None, label=''):
         self.question = question
         self.responselist = responselist
         if retries == None:
@@ -65,6 +69,12 @@ class Message(object):
         else:
             # TODO: sanity check
             self.timeout = timeout
+
+        # error handling callback so we can deal with providin
+        self.no_match_callback = no_match_callback
+
+        # called during build_send_str
+        self.custom_message_callback = custom_message_callback
 
         # used for leaf nodes where we do not want to send a repsonse
         self.do_not_send = do_not_send
@@ -240,7 +250,7 @@ class StateMachine(object):
           #self.msgid = self.user.msgid.next()
           self.tasknamespace_override = task.tasknamespace_override
           self.tnsid = self.interaction.initialnode.label
-          
+
           self.done = False
           
           self.last_response = ''
@@ -256,8 +266,9 @@ class StateMachine(object):
           # support cens gui
           self.app.session_close(self.session_id)
 
+
       def schedule_retry(self):
-          self.log.debug('############################ in StateMachine.schedule_retry. self.tnsid: %s', self.tnsid)
+          self.log.debug('in StateMachine.schedule_retry. self.tnsid: %s', self.tnsid)
           if self.node.timeout == 0:
               # this is the 'just send an bail case', we set a timeout anyway so we can cleanup the sm
               self.node.timeout = self.node.DEFAULT_TIMEOUT
@@ -268,6 +279,8 @@ class StateMachine(object):
           # TODO
           # TODO: Convert as args isntead of dictionary and call taskscheduler.schedule_timeout() (callbacks will come through ajax_POST_timeout)
           # TODO
+          # TODO: call Faisals scheduler through the taskscheduler.schedule_timeout()
+          # TODO
           d = {'callback':'taskmanager.app.callresend',
                'minutes':self.node.timeout,
                'repetitions':self.node.retries,
@@ -276,13 +289,16 @@ class StateMachine(object):
                'identity':self.user.identity }        
           self.app.schedule_response_reminder(d)
 
+
       def clear_retry(self):
-          self.log.debug('############################ in StateMachine.clear_retry. self.tnsid: %s', self.tnsid)
-          self.app.clear_response_reminder(self.tnsid, self.user.identity)
+          # called when we want any timeouts associated with this machine to be deactivated.
+          # This should be called every time we get a message in that matches this state machine
+          # so we do not have stale timeouts firing when we do not need them
+          self.log.debug('in StateMachine.clear_retry. self.tnsid: %s', self.tnsid)
+          self.app.clear_response_reminder(self.tnsid, self.user.identity)      
       
-      
-      def setup_retry_finish_fail(self, from_init=False):
-          self.log.debug('!!!!!!!!!!!!!!!!!!!!!!!!!!! in StateMachine.setup_retry. self.tnsid: %s', self.tnsid)
+      def setup_retry_finish_fail(self, no_decrement_retry=False):
+          self.log.debug('in StateMachine.setup_retry_finish_fail. self.tnsid: %s', self.tnsid)
           self.log.debug('self.node: %s, self.node.retries: %s' % ( str(self.node), self.node.retries ))
 
           self.clear_retry() # anything stale in the DB? setup a new schedule
@@ -343,7 +359,7 @@ class StateMachine(object):
                   retcode = 'retry'
 
           # only start decrementing after the first full try
-          if self.node.retries > 0 and self.node.sentcount > 1 and from_init == False:
+          if self.node.retries > 0 and self.node.sentcount > 1 and no_decrement_retry is False:
               self.node.retries = self.node.retries - 1
           return retcode
       
@@ -353,40 +369,51 @@ class StateMachine(object):
           self.setup_retry_finish_fail()
       
       def handle_message(self, message):
+          # Process the input.
+          # If something matched we advanced to the next node.
+          # If nothing matched we ask for a retry with the retcode and provide an optional error response
+
           self.log.debug('in StateMachine.handle_message(): handling message %s' % (message))
                     
           assert(message is not None)
           self.last_response = message
           rnew = message
 
-          # did the new response match anything in the responselist?
-          # if we reached this point, there should always be something in repsonselist because
+          # If we set a custom error message or a custom response, we set this var.
+          # Return this always. higher up code checks for None otherwise uses it as response.
+          retstring = None
+          retcode = "ok"
+          #
+          # TODO: make retcode be some actul static variable instead of strings
+          #
+          
+          # check if the new response matches anything in the response list.
+          # Current policy is to accept the first match and move on.
+          # If we reached this point, there should always be something in repsonselist because
           # we would have called finish() on the message we got previously
-          matches = [r.match(rnew) for r in self.node.responselist]
-          matchcount = len(matches) - (matches.count(None) + matches.count(False))
-          self.log.debug('matches: %s', matches)          
-          self.log.debug('matchcount: %s', matchcount)          
+          matchidx = -1
+          for i in range(len(self.node.responselist)):
+              matchres = self.node.responselist[i].match(rnew)
+              self.log.debug('tried match, got %s', matchres)
+              if matchres is not False and matchres is not None:
+                  matchidx = i
+                  break
+          
+          self.log.debug('found match at idx %s (if -1, no match)', matchidx)
 
-          #
-          # TODO: BRING IN Faisals code to run on the first match and handle a no match
-          #
-          # TODO: support having an empty response, so the user can 'have the last word'
-          #
           # clear any scheduled reminders so we do not get callbacks
           self.clear_retry()
-          if matchcount == 1:
+          if matchidx >= 0:
 
               self.log.debug('found response match')
-              # find index for the match
-              i = [m is not None and m is not False for m in matches].index(True)
-              response = self.node.responselist[i]
+              response = self.node.responselist[matchidx]
  
               # advance to the next node
               self.node = self.interaction.mapsTo(self.node, response)
               self.log.debug('advanced current node to: %s', self.node)
-
+              
               ##
-              ## MAJOR CHANGE... this is where we determine what the next expected tasknamespace string is
+              ## This is where we determine what the next expected tasknamespace string is
               ##
               if self.tasknamespace_override is not None:
                   self.tnsid = self.tasknamespace_override
@@ -394,23 +421,24 @@ class StateMachine(object):
                   self.tnsid = self.node.label
 
               # call response obj's developer defined callback
-              if hasattr(response, 'callback'):
+              if response.callback is not None:
                   self.log.debug('calling %s callback', response)
                   # Sendv back rnew, session_id
                   response.kwargs['response'] = rnew
                   response.kwargs['session_id'] = self.session_id
                   result = response.callback(*response.args, **response.kwargs)
-                  self.log.debug('callback result: %s.', result)
-                            
-          elif matchcount == 0:
+                  self.log.debug('callback result: %s', result)                  
               
+          else: #matchidx == -1
+              # no match, so call custom error callback, otherwise code will
               self.log.debug('response did not match expected list of responses OR we are done')
-          else:
-              self.log.debug('rnew: %s, matched more than one (%d) response in response list, attempting to resend' % (rnew, matchcount))
-
-          # We have processed the input.
-          # If something matched we advanced to the next node
-          # If nothing matched we will decremet retry counter or fail
+              if self.node.no_match_callback is not None:
+                  self.log.debug('calling custom error callback %s', self.node)
+                  retstring = self.node.no_match_callback(node=self.node, response=rnew, session_id=self.session_id)
+                  self.log.debug('got response string %s', retstring)
+              retcode = "retry"
+                  
+          return (retstring, retcode)
           #self.setup_retry_or_finish() # now called from tm
           
           
@@ -446,16 +474,18 @@ class TaskManager(object):
                 assert(len(self.uism) > 0)
 
 
-    def scrub(self, statemachine):
-        """remove statemachine from user's and taskmanager's lists"""
-        assert(statemachine in self.uism)
-        assert(len(self.uism) > 0)
-        assert(statemachine.done)
+    def scrub_statemachines(self):
+        """remove done statemachine from user's and taskmanager's lists"""
 
+        scrublist = []
         try:
-            i = self.uism.index(statemachine)
-            self.log.debug('in TaskManager.scrub(): deleting statemachine: %s from self.uism', statemachine)
-            self.uism.pop(i)            
+            for sm in self.uism:
+                if sm.done:
+                    scrublist.append(sm)
+            for sm in scrublist:
+                self.log.debug('in TaskManager.scrub_statemachines(): deleting statemachine: %s from self.uism', s,)
+                i = self.uism.index(sm)
+                self.uism.pop(i)
         except ValueError:
             self.log.error('statemachine is not in self.uism')
             return
@@ -466,17 +496,22 @@ class TaskManager(object):
         
     @staticmethod
     def build_send_str(node, tnsid):
-        text = ''.join(node.question)
+        print 'in TaskManager.build_send_str(): node.retries: %d, node.sentcount %d' % (node.retries, node.sentcount)
 
-        #if (node.sentcount > 1):
-        #if node.retries > 1 and node.responselist:
-        #  text += ' (resending, reply was misunderstood or dropped)'
+        basetext = ''
+        # call the message objets developer defined custom message callback to get a string
+        if node.custom_message_callback is not None:
+            print 'calling custom response callback for %s' % (node.label)
+            basetext = node.custom_message_callback(node) # what else should we pass in?
+            print 'got response string %s' % (basetext)
+        else:
+            basetext = node.question
+
+        text = ''.join(basetext)
+
         if node.responselist:
-          text += ' Prepend \"%s\" to your reply.' % (tnsid)
-
-        #print 'in TaskManager.build_send_str(): node.sentcount: %s' % node.sentcount
-        print 'in TaskManager.build_send_str(): node.retries: %s' % node.retries
-
+            text += ' Prepend \"%s\" to your reply.' % (tnsid)
+        
         return text
 
 
@@ -488,20 +523,14 @@ class TaskManager(object):
 
         for sm in self.uism:
             self.log.debug('candidate: %s %s %s %s %s', sm, sm.tnsid, sm.node.label, sm.user.identity, sm.done)
-            
-        scrublist = []
+        
+        self.scrub_statemachines()
+        
         for sm in self.uism:
-            if sm.done:
-                scrublist.append(sm)
-            else:
-                #if (sm.msgid == msgid) and (sm.user.identity == identity):
-                if sm.tnsid == tnsid and sm.user.identity == identity:
-                    self.log.debug('found candidate: %s', sm)
-                    cl.append(sm)
-        
-        for sm in scrublist:
-            self.scrub(sm)
-        
+            if sm.tnsid == tnsid and sm.user.identity == identity:
+                self.log.debug('found candidate: %s', sm)
+                cl.append(sm)
+                
         if len(cl) > 1:
             self.log.error('found more than one statemachine, candidate list: %s', cl)
         elif len(cl) == 0:
@@ -526,16 +555,12 @@ class TaskManager(object):
         self.app.savetask(statemachine.session_id, **d)
     
     def send_curr_message(self, statemachine):
-        # Send the current message for this state machine. Only call this on init or after you
-        # have checked that sm.done is not ture
+        # Send the current message for this state machine. Only call this on init or from timeout
+        # handler (it does not happen in the tm.recv() and sm.handle_message() code paths). Must check
+        # that sm.done is not ture before calling this
         #
         self.log.debug('in tm.send_curr_message()')
         
-        # MLL: don't need to do any checks on sentcount/retry here anymore, since only one timeout at a time is scheduled
-        #
-        ## edge-case: sentcount<=max since it's called after last inc of sentcount
-        #if statemachine.node.sentcount <= StateMachine.MAXSENTCOUNT:
-        #text = TaskManager.build_send_str(statemachine.node, statemachine.msgid)
         # We set the next tasknamespace to look for in the handler that figured out what the next node was
         text = TaskManager.build_send_str(statemachine.node, statemachine.tnsid)
         self.log.debug('in TaskManager.send_curr_message(): node.retries: %i, preparing to send text: %s', statemachine.node.retries, text)
@@ -543,15 +568,14 @@ class TaskManager(object):
         self.app.send(statemachine.user.identity, statemachine.user.identityType, text)
     
     
-    #    def resend(self, tnsid=None, identity=None):
     def handle_timeout(self, tnsid=None, identity=None):
         self.log.debug('in tm.handle_timeout():')        
-        #sm = self.findstatemachine(msgid, identity)
         sm = self.findstatemachine(tnsid, identity)
 
         #
         # TODO: Check if THIS IS BROKEN WHEN USING the tasknamespace_override feature
-        # ... not sure this is the case since any outstanding scheduled reminders are cleared now
+        # ... not sure this is broken since any outstanding scheduled reminders/retry/timeouts are cleared now
+        # with clear_retry()
         #
         if sm and not sm.done:
             assert(isinstance(sm, StateMachine)==True)
@@ -596,10 +620,7 @@ class TaskManager(object):
                            'rmsgid: \'%s\'; rtext: \'%s\'; peer: \'%s\'' % (rtnsid, rtext, rmessage.connection.identity))           
 
             # first, remote task if done
-            for sm in self.uism:
-                if sm.done:
-                    self.log.debug('preparing to delete statemachine: %s', sm)
-                    self.scrub(sm)
+            self.scrub_statemachines()
 
             # then, find the correct statemachine
             for sm in self.uism:
@@ -621,8 +642,12 @@ class TaskManager(object):
                     # log received msg
                     self.app.log_message(sm.session_id, rtnsid + ' ' + rtext, False)
 
-                    sm.handle_message(rtext)
-                    retcode = sm.setup_retry_finish_fail()
+                    (optional_response, retcode) = sm.handle_message(rtext)
+                    if retcode is "ok":
+                        retcode = sm.setup_retry_finish_fail()
+                    else:
+                        # if they sent a response can could not match we do not want to decrement the retry counter
+                        retcode = sm.setup_retry_finish_fail(no_decrement_retry=True)
                     # handle_message checks for a match, if there was a match, advance to the
                     # next node. If there was no match, stay on the same node.
                     if retcode is 'fail':
@@ -635,8 +660,11 @@ class TaskManager(object):
                             self.app.log_message(sm.session_id, response, True)
                         else:
                             response = None
-                    else: #retcode is 'retry':
-                        response = TaskManager.build_send_str(sm.node, sm.tnsid)
+                    else: #retcode is 'retry': #indicates proceed normally or
+                        if optional_response is not None:
+                            response = optional_response
+                        else:
+                            response = TaskManager.build_send_str(sm.node, sm.tnsid)
                         self.log.debug('and response = %s' % (response))
                         self.app.log_message(sm.session_id, response, True)
                         
@@ -659,13 +687,13 @@ class TaskManager(object):
                 continue
             if sm.node == sm.interaction.initialnode and sm.node.sentcount == 0:
                 # This is the init case
-                sm.setup_retry_finish_fail(from_init=True)
+                sm.setup_retry_finish_fail(no_decrement_retry=True)
                 self.send_curr_message(sm)
                 self.save_curr_statemachine(sm)
             else: #if sm.node.sentcount > 0:
                 # This is the case if the system has come down, and then comes back up and is waiting for a response
                 # We need to set the timers, but we do not need to send anything
-                sm.setup_retry_finish_fail(from_init=True)
+                sm.setup_retry_finish_fail(no_decrement_retry=True)
                 self.save_curr_statemachine(sm)
 
             

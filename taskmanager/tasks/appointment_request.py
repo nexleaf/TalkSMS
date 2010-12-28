@@ -51,11 +51,11 @@ class AppointmentRequest(BaseTask):
         
         #r2 = sms.Response('8/30/2012 16:30:00', r'\d+/\d+/\d+\s\d+:\d+:\d+', label='datetime', callback=self.schedule_reminders)
         r2 = sms.Response('8/30/2012 16:30:00', match_callback=AppointmentRequest.match_date, label='r2', callback=self.schedule_reminders)
-        m1 = sms.Message(q1, [r1,r2], label='m1')
+        m1 = sms.Message(q1, [r1,r2], label='m1', no_match_callback=self.no_match_test)
         
         # m2
         q2 = 'Ok, stopping messages now. Thank you for participating.'
-        m2 = sms.Message(q2, [], label='m2')
+        m2 = sms.Message(q2, [], label='m2', custom_message_callback=self.custom_message_test)
         
         # m3
         # resolves to:
@@ -74,6 +74,14 @@ class AppointmentRequest(BaseTask):
         # set self.interaction
         # self.interaction =  sms.Interaction(graph=self.graph, initialnode=m1, label='interaction')
         super(AppointmentRequest, self).setinteraction(graph=self.graph, initialnode=m1, label='interaction')
+
+
+    def no_match_test(self, node, response, session_id):
+        return "I want some representation of a future date dummy"
+    
+    def custom_message_test(self, message_obj):
+        t = datetime.now()
+        return "Stopping messages at %s. Thank you for participating" % (t)
         
 
     # developer is required to implement save()
