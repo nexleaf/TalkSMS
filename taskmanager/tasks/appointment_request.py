@@ -74,6 +74,9 @@ class AppointmentRequest(BaseTask):
             'Please respond with both the date and the time of the appointment when you\'ve scheduled it, or \'stop\' if you don\'t want to schedule one now.',
             initial_responses)
         
+        # FAISAL: left to demonstrate no match callback parameter
+        # m1 = sms.Message(q1, [r1,r2], label='m1', no_match_callback=self.no_match_test)
+        
         # message sent when the user sends us a valid date and time
         # the response that leads here actually sets up the appointments
         m_valid_appt = sms.Message(render_to_string('tasks/appts/response.html', {'args': self.args}), [])
@@ -81,7 +84,9 @@ class AppointmentRequest(BaseTask):
         # lists of transitions that'll be used for every node that takes the same input as the initial
         # this needs to match up pairwise with initial_responses :\
         initial_transitions = [m_stop, m_stalling, m_need_date_and_time, m_valid_appt]
-        
+
+        # define a super class with .restore() in it. below, user will call createGraph(), createInteraction()
+        # which remember handles to graph and interaction. when .restore() is called it just updates the node we're at searching with the label.
         self.graph = { m_initial: initial_transitions,
                        m_stop: [],
                        m_need_date_and_time: initial_transitions,
@@ -91,6 +96,15 @@ class AppointmentRequest(BaseTask):
 
         super(AppointmentRequest, self).setinteraction(graph=self.graph, initialnode=m1, label='interaction')
 
+
+    def no_match_test(self, node, response, session_id):
+        return "I want some representation of a future date dummy"
+    
+    def custom_message_test(self, message_obj):
+        t = datetime.now()
+        return "Stopping messages at %s. Thank you for participating" % (t)
+
+    
     # developer is required to implement save()
     # we save (most of) the stuff above, so what does the developer require in the functions below
     # 

@@ -32,20 +32,23 @@ class App(rapidsms.apps.base.AppBase):
         self.debug('app.Taskmanager start time: %s', datetime.now())
 
 
-    def handle (self, message):
+    def handle(self, message):
         self.debug('in App.handle(): message type: %s, message.text: %s', type(message),  message.text)
 
         response = self.tm.recv(message)
 
         if response is None:
-            # if response is None, a user-initiated task has been scheduled to start immediately.
-            # message is handled, return true
+            # if response is None, a user-initiated task has been scheduled to start immediately
+            # OR the particular statemachine has finished, so there is no repsonse to send back.
+            # So, message is handled, return true
             return True
         else:
+            # if there was a response, send it.
             message.respond(response)
             
 
     def send(self, identity, identityType, text):
+        # Used to send messages when get a timeout or from init
         self.debug('in App.send():')
         try:
             from rapidsms.models import Backend 
@@ -62,23 +65,8 @@ class App(rapidsms.apps.base.AppBase):
             self.debug('problem sending outgoing message: createdbkend?:%s; createdconn?:%s; exception: %s', createdbkend, createdconn, e)
 
 
-    def resend(self, msgid=None, identity=None):
-        self.debug('in App.resend():')        
-        sm = self.findstatemachine(msgid, identity)
-
-        if sm and not sm.done:
-            assert(isinstance(sm, sms.StateMachine)==True)
-            assert(sm.msgid==msgid)
-
-            self.debug('statemachine: %s; currentnode: %s; statemachine.node.sentcount: %s', sm, sm.node, sm.node.sentcount)
-            sm.kick()
-            self.tm.send(sm)
-        else:
-            self.debug('statemachine has incr to a new node or is done, no need to send a response reminder')
-
-
     # schedules reminder to respond messages
-    def schedule_response_reminders(self, d):
+    def schedule_response_reminder(self, d):
         self.debug('in App.schedulecallback(): self.router: %s', self.router)
         cb = d.pop('callback')
         m = d.pop('minutes')
@@ -89,12 +77,24 @@ class App(rapidsms.apps.base.AppBase):
         s = timedelta(minutes=m)
     
         # for n in [(t + 1*s), (t + 2*s), ... (t + r+s)], where r goes from [1, reps+1)
-        for st in [t + r*s for r in range(1,reps+1)]:
-            self.debug('scheduling a reminder to fire after %s', st)
-            schedule = EventSchedule(callback=cb, minutes=ALL, callback_kwargs=d, start_time=st, count=1)
-            schedule.save()                                    
+        #for st in [t + r*s for r in range(1,reps+1)]:
+        # MLL: Changed to do one at a time, so resend will schedule the next one
+        schedule = EventSchedule(callback=cb, minutes=ALL, callback_kwargs=d, start_time=t+s, count=1)
+        schedule.save()
+        self.debug('scheduling a reminder to fire after %s at %s, id=%d', s, s+t, schedule.id)
 
-
+    def clear_response_reminder(self, tnsid, identity):
+        # anytime we want to clear out pending timeouts, this will deactivate them
+        self.debug('in App.clear_response_reminder(): looking to deactivate tnsid: %s, indetity: %s', tnsid, identity)
+        clearlist = []
+        for es in EventSchedule.objects.filter(active=True):
+            checkdict = es.callback_kwargs
+            if checkdict['tnsid'] == tnsid and checkdict['identity'] == identity:
+                self.debug('deactivating %i %i', es.id, es.pk)
+                es.active=False
+                es.save()
+        # tried to make this do es.delete() but it did not seem to work!
+    
     # support cens gui
     def log_message(self, session_id, message, outgoing):
         session = Session.objects.get(pk=session_id)
@@ -104,32 +104,6 @@ class App(rapidsms.apps.base.AppBase):
             outgoing=outgoing
             )
         nm.save()
-
-
-    def findstatemachine(self, msgid, identity):
-        self.debug('in App.findstatemachine(): msgid:%s, identity: %s', msgid, identity)
-
-        cl = []
-        statemachine = None
-
-        for sm in self.tm.uism:
-            if sm.done:
-                self.tm.scrub(sm)
-            else:
-                if (sm.msgid == msgid) and (sm.user.identity == identity):
-                    self.debug('found candidate: %s', sm)
-                    cl.append(sm)
-                
-        if len(cl) > 1:
-            self.error('found more than one statemachine, candidate list: %s', cl)
-        elif len(cl) == 0:
-            self.debug('found no matching statemachine, candidate list: %s', cl)
-        else:
-            assert(len(cl)==1)
-            self.debug('found unique statemachine: %s', cl[0])
-            statemachine = cl[0]
-
-        return statemachine
         
                                         
     def ajax_GET_status(self, getargs, postargs=None):
@@ -163,7 +137,9 @@ class App(rapidsms.apps.base.AppBase):
 
     def createdbuserandtask(self, message):
         print 'in app.createuserandtask:'
-        
+        #
+        # TODO: move into task manager... it handles tasks, so this goes there
+        #
         firstword = str(message.text).lower().split(None, 1)[0]        
         alltasks = Task.objects.all()
         print alltasks
@@ -288,14 +264,14 @@ class App(rapidsms.apps.base.AppBase):
              't_pblob' : sm.task.save(),
              's_app' : self,
              's_session_id' : session.id,
-             's_msgid' : sm.msgid,
+             's_tnsid' : sm.tnsid,
              's_done' : sm.done,
              's_node' : sm.node.label,
-             's_event' : sm.event,
-             's_mbox' : sm.mbox if sm.mbox else '',
+             's_last_response' : sm.last_response,
              'm_sentcount' : sm.node.sentcount,
-             'i_initialnode' : sm.task.interaction.initialnode.label,
-             'u_nextmsgid' : smsuser.msgid.peek() }
+             'm_retries' : sm.node.retries,
+             'm_timeout' : sm.node.timeout,
+             'i_initialnode' : sm.task.interaction.initialnode.label}
         st = SerializedTasks(**d)
         st.save()        
 
@@ -308,7 +284,7 @@ class App(rapidsms.apps.base.AppBase):
     def savetask(self, s_session_id, **kwargs):
         self.debug('in App.savetask(): session id: %s, ' )
         # cols from task_serializedtasks
-        keys = ['t_args', 't_plob', 's_msgid', 's_done', 's_node', 's_event', 's_mbox', 'm_sentcount', 'i_initialnode', 'u_nextmsgid']
+        keys = ['t_args', 't_plob', 's_tnsid', 's_done', 's_node', 's_last_response', 'm_sentcount', 'm_retries', 'm_timeout', 'i_initialnode']
 
          # .get() raises an exection if there is more than one match
         st = SerializedTasks.objects.get(pk=s_session_id)
@@ -316,13 +292,7 @@ class App(rapidsms.apps.base.AppBase):
 
         for k in keys:
             if k in kwargs:
-                # if kwargs['s_mbox'] == None:
-                if (k is 's_mbox') and (not kwargs[k]):
-                    # st.s_mbox = ''
-                    object.__setattr__(st, k, '')
-                else:
-                    # st.k = kwargs[k]
-                    object.__setattr__(st, k, kwargs[k]) 
+                object.__setattr__(st, k, kwargs[k]) 
         
         st.save()
         
@@ -360,16 +330,16 @@ class App(rapidsms.apps.base.AppBase):
             patient = Patient.objects.get(pk=session[0].patient_id)
             smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
             # need to be careful about setting the users's msgid...
-            smsuser.msgid.reset(st.s_msgid-1)
-
-            self.debug('resetting user.msgid: %s', st.s_msgid-1)
+            #smsuser.msgid.reset(st.s_msgid-1)
+            
+            #self.debug('resetting user.msgid: %s', st.s_msgid-1)
 
             # make sure smsusers in memory are reset to their last state
             if st.s_done:
                 self.debug('\n\npassing restore of dead st: %s', st)
                 # if there is no live statemachine, we want to restore user to the state it was after this sm was created.
                 # (helps when there are no live statemachines at restore)
-                self.debug('increment user id %s from: %s to: %s', smsuser.identity, smsuser.msgid.count, smsuser.msgid.next())
+                #self.debug('increment user id %s from: %s to: %s', smsuser.identity, smsuser.msgid.count, smsuser.msgid.next())
                 continue
 
             self.debug('\n\nrestoring st: %s', st)
@@ -391,16 +361,23 @@ class App(rapidsms.apps.base.AppBase):
             
             # restore statemachine state, sm.msgid is incremented to st.u_nextmsgid at init
             sm = sms.StateMachine(self, smsuser, t, st.s_session_id)
-            self.debug('\nsm.msgid (from smsuser.msgid.count): %s\nsmsuser.msgid.peek(): %s\nst.u_nextmsgid: %s\n',
-                       smsuser.msgid.count, smsuser.msgid.peek(), st.u_nextmsgid)
+            #self.debug('\nsm.msgid (from smsuser.msgid.count): %s\nsmsuser.msgid.peek(): %s\nst.u_nextmsgid: %s\n',
+            #           smsuser.msgid.count, smsuser.msgid.peek(), st.u_nextmsgid)
             sm.done = False if st.s_done==0 else True
             # find correct node in graph which matches the label we saved
             for node in sm.interaction.graph.keys():
                 if node.label is st.s_node:
                     sm.node = node
+                    # sm.tnsid will be one of: sm.node.label OR sm.tasknamespace_overide
+                    if t.tasknamespace_override is not None:
+                        sm.tnsid = node.label
+                    else:
+                        sm.tnsid = t.tasknamespace_override
+                        
             sm.node.sentcount = st.m_sentcount
-            sm.event = st.s_event
-            sm.mbox = None if st.s_mbox is '' else st.s_mbox
+            sm.node.retries = st.m_retries
+            sm.node.timeout = st.m_timeout
+            sm.last_response = st.s_last_response
             
             self.tm.addstatemachines(sm)
         
@@ -430,4 +407,6 @@ def callresend(router, **kwargs):
     app.debug('router: %s; received: kwargs:%s' % (router, kwargs))
 
     # rapidsms.contrib.scheduler marks each entry with EventSchedule.active=0 after it's fired.
-    app.resend(kwargs['msgid'], kwargs['identity'])
+    #app.resend(kwargs['msgid'], kwargs['identity'])
+    #app.resend(kwargs['tnsid'], kwargs['identity'])
+    app.tm.handle_timeout(kwargs['tnsid'], kwargs['identity'])

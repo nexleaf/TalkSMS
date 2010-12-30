@@ -15,23 +15,27 @@ class SerializedTasks(models.Model):
     s_app = models.CharField(max_length=50)
     # we will use this as a foreign key into the Session/taskmanager_session table
     s_session_id = models.IntegerField(max_length=50)
-    s_msgid = models.IntegerField(max_length=50)
+
+    # tasknamespace id's can be saved as json strings so that switching between simple id types (string, int)
+    #    doesn't change the db model.
+    s_tnsid = models.CharField(max_length=50)
+
     s_done = models.BooleanField(max_length=50)
     # label of the message node that's currently referenced in the statemachine as self.node.
     s_node = models.CharField(max_length=50)
-    s_event = models.CharField(max_length=50)
+    #s_event = models.CharField(max_length=50)
     # last response left in statemachine.mbox
-    s_mbox = models.CharField(max_length=150)
+    s_last_response = models.CharField(max_length=150)
 
     ## serialized attributes for sms.Message 
     m_sentcount = models.IntegerField(max_length=5)
+    m_retries = models.IntegerField(max_length=5)
+    m_timeout = models.IntegerField(max_length=8)
     
     ## serialized attributes for sms.Interaction
     # label for the initial node
     i_initialnode = models.CharField(max_length=30) 
     
-    ##  serialized attributes for sms.User
-    u_nextmsgid = models.IntegerField(max_length=5)
 
     
     def __unicode__(self):
@@ -40,23 +44,23 @@ class SerializedTasks(models.Model):
     t_pblob: %s
     s_app: %s
     s_session_id: %s
-    s_msgid: %s
+    s_tnsid: %s
     s_done: %s
     s_node: %s
-    s_event: %s
-    s_mbox: %s
-    m_sentcount: %s
+    s_last_response: %s
+    m_sent_count: %s
+    m_retries: %s
+    m_timeout: %s
     i_initialnode: %s
-    u_nextmsgid: %s
         """ % (self.t_args,\
                self.t_pblob,\
                self.s_app,\
                self.s_session_id,\
-               self.s_msgid, \
+               self.s_tnsid, \
                self.s_done,\
                self.s_node,\
-               self.s_event,\
-               self.s_mbox,\
-               self.m_sentcount,\
-               self.i_initialnode,\
-               self.u_nextmsgid)
+               self.s_last_response,\
+               self.m_sentcount, \
+               self.m_retries,\
+               self.m_timeout,\
+               self.i_initialnode)
