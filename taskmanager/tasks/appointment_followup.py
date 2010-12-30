@@ -10,9 +10,14 @@ from django.template.loader import render_to_string
 from taskmanager.models import *
 import taskscheduler
 
-class AppointmentFollowup(object):
+from task import BaseTask
+
+class AppointmentFollowup(BaseTask):
+    
     def __init__(self, user, args=None):
 
+        BaseTask.__init__(self)
+        
         self.args = args
         print 'in appointmentrequest: self.args: %s; type(self.args):%s' % (self.args, type(self.args))
         
@@ -30,20 +35,34 @@ class AppointmentFollowup(object):
         # message asking them for feedback after their appointment
         m1 = sms.Message(
             render_to_string('tasks/appts/followup.html', {'patient': self.patient, 'args': self.args}),
-            [r_feedback, r_missed])
+            [r_feedback, r_missed], label='m1')
 
         # message sent when user provides feedback in the form 'feedback <my message here>'
-        m_thanks = sms.Message('Thank you for your feedback.', [])
+        m_thanks = sms.Message('Thank you for your feedback.', [], label='thanks')
 
         # message sent when user missed their appointment
-        m_missed = sms.Message('You will receive a new request to reschedule within a few days.', [])
+        m_missed = sms.Message('You will receive a new request to reschedule within a few days.', [], label='missed')
         
         self.graph = { m1: [m_thanks, m_missed],
                        m_thanks: [],
                        m_missed: [] }
 
-        self.interaction = sms.Interaction(self.graph, m1, self.__class__.__name__ + '_interaction')
-    
+        # self.interaction = sms.Interaction(self.graph, m1, self.__class__.__name__ + '_interaction')
+        super(AppointmentFollowup, self).setinteraction(graph=self.graph, initialnode=m1, label='interaction')
+
+
+    # developer is required to implement save()
+    def save(self):
+        print 'in %s.save(): ' % (self.__class__.__name__)
+        # save whatever you like in the parameter blob
+        return json.dumps({})
+
+    # developer required to implement restore():
+    def restore(self, pb_str):
+        print 'in %s.restore() stub' % (self.__class__.__name__)
+        pb = json.loads(pb_str)
+
+        
     @staticmethod
     def match_date(msgtxt):
         pdt = parsedatetime.Calendar()
@@ -95,8 +114,6 @@ class AppointmentFollowup(object):
         # get the first 6 values from teh stuct... the rest we do not care about
         t = datetime(*res[0:7])
 
-        #t = datetime.strptime(ndatetime, "%m/%d/%Y %H:%M:%S")
-
         # support cens gui: app_date used to display appointment time only
         # Tuesday, 5:30pm, November 03, 2010
         appttime = t.strftime("%A %I:%M%p, %B %d, %Y")
@@ -106,8 +123,7 @@ class AppointmentFollowup(object):
 
         # sched a reminder.
         d1 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': t,'session_id': session_id}
-        #d1 = {'task': 'Appointment Reminder','user': self.user.identity,'args': self.args,'schedule_date': t.isoformat,'session_id': session_id}
-
+    
         try:
             taskscheduler.schedule(d1)
         except Exception as e:

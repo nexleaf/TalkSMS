@@ -8,8 +8,12 @@ import json, re
 from django.template.loader import render_to_string
 from taskmanager.models import *
 
-class AppointmentReminder(object):
+from task import BaseTask
+
+class AppointmentReminder(BaseTask):
     def __init__(self, user, args=None):
+
+        BaseTask.__init__(self)
 
         self.args = args
 
@@ -34,15 +38,16 @@ class AppointmentReminder(object):
             # resolves to:
             #{% load parse_date %}Your {{ args.appt_type }} is approaching. Reply 'cancel' to cancel it or 'ok' to confirm.
             q1 = render_to_string('tasks/appts/reminder.html', {'patient': self.patient, 'args': self.args})
-            
+
         r1 = sms.Response('ok', match_regex=r'ok')
         r2 = sms.Response('cancel', match_regex=r'cancel|no', callback=self.cancel)
-        r_stop = sms.Response('stop', match_regex=r'stop', label='stop', callback=self.appointment_cancelled_alert)
+        r_stop = sms.Response('stop', match_regex=r'stop', label='stop', callback=self.stopped)
         m1 = sms.Message(q1, [r1, r2, r_stop])
+
     
         # m2
         q2 = 'See you soon.'
-        m2 = sms.Message(q2, [])
+        m2 = sms.Message(q2, [], label='m2')
         
         # m3
         q3 = 'Thank you for letting us know. Remember to also actually cancel your appointment with your care provider.'
@@ -50,16 +55,17 @@ class AppointmentReminder(object):
 
         # message sent when the user decides to stop
         m_stop = sms.Message('Ok, stopping messages now. Thank you for participating.', [])
+
         
         self.graph = { m1: [m2, m3, m_stop],
                        m2: [],
                        m3: [],
                        m_stop: [] }
         
-        self.interaction = sms.Interaction(self.graph, m1, self.__class__.__name__ + '_interaction')
+        # self.interaction = sms.Interaction(graph=self.graph, initialnode=m1, label='interaction')
+        super(AppointmentReminder, self).setinteraction(graph=self.graph, initialnode=m1, label='interaction')
 
-        
-    def appointment_cancelled_alert(self, *args, **kwargs):
+    def stopped(self, *args, **kwargs):
         response = kwargs['response']
         session_id = kwargs['session_id']
 
@@ -72,7 +78,6 @@ class AppointmentReminder(object):
             alert_args['url'] = '/taskmanager/patients/%d/history/#session_%d' % (self.patient.id, session_id)
         alert_args.update(args)
         Alert.objects.add_alert("Messages Stopped", arguments=alert_args, patient=self.patient)
-        
 
     def cancel(self, *args, **kwargs):
         session_id = kwargs['session_id']
@@ -89,5 +94,14 @@ class AppointmentReminder(object):
         # the statemachine ends after this callback, no need to cancel any response reminders.
         ScheduledTask.objects.filter(process=session.process).update(active=False)
 
+    def save(self):
+        print 'in %s.save(): ' % (self.__class__.__name__)
+        # save whatever you like in the parameter blob
+        return json.dumps({})
+
+    # developer required to implement restore():
+    def restore(self, pb_str):
+        print 'in %s.restore() stub' % (self.__class__.__name__)
+        pb = json.loads(pb_str)
 
 

@@ -8,32 +8,42 @@ import tasks.sms as sms
 import tasks.appointment_request
 import tasks.appointment_reminder
 import tasks.appointment_followup
-
+import tasks.taskscheduler
 from taskmanager.models import *
+from taskmanager.tasks.models import SerializedTasks
 
 
 class App(rapidsms.apps.base.AppBase):
 
     def start(self):
-        self.counter = 0
-
         # keep until persistence is implemented
         self.smsusers = []
-        # since we're just starting, any existing sessions must be complete
-        Session.objects.filter(completed=False).update(completed=True, completed_date=datetime.now(), state='router_restarted')
 
-        # initialize and start TalkSMS
+        # initialize TalkSMS
         self.tm = sms.TaskManager(self)
+        self.debug('app.Taskmanager init time: %s', datetime.now())
+
+        # restore serialized tasks, if any        
+        self.system_restore()
+        self.debug('app.Taskmanager finished system_restore(), time: %s', datetime.now())
+
+        # start TalkSMS
         self.tm.run()
         self.debug('app.Taskmanager start time: %s', datetime.now())
 
 
     def handle (self, message):
         self.debug('in App.handle(): message type: %s, message.text: %s', type(message),  message.text)
-        response = self.tm.recv(message)
-        #self.debug("message.subject: %s; responding: %s", message.subject, response)
-        message.respond(response)
 
+        response = self.tm.recv(message)
+
+        if response is None:
+            # if response is None, a user-initiated task has been scheduled to start immediately.
+            # message is handled, return true
+            return True
+        else:
+            message.respond(response)
+            
 
     def send(self, identity, identityType, text):
         self.debug('in App.send():')
@@ -61,9 +71,6 @@ class App(rapidsms.apps.base.AppBase):
             assert(sm.msgid==msgid)
 
             self.debug('statemachine: %s; currentnode: %s; statemachine.node.sentcount: %s', sm, sm.node, sm.node.sentcount)
-            # if we're still waiting for a response, send a reminder and update sentcount
-            #if (sm.node.sentcount < sms.StateMachine.MAXSENTCOUNT):
-            #    self.debug('sm.node.sentcount incremented to: %s', sm.node.sentcount)                
             sm.kick()
             self.tm.send(sm)
         else:
@@ -85,8 +92,8 @@ class App(rapidsms.apps.base.AppBase):
         for st in [t + r*s for r in range(1,reps+1)]:
             self.debug('scheduling a reminder to fire after %s', st)
             schedule = EventSchedule(callback=cb, minutes=ALL, callback_kwargs=d, start_time=st, count=1)
-            schedule.save()               
-                      
+            schedule.save()                                    
+
 
     # support cens gui
     def log_message(self, session_id, message, outgoing):
@@ -150,6 +157,75 @@ class App(rapidsms.apps.base.AppBase):
         session.save()
 
 
+    def knownuser(self, message):
+        return Patient.objects.filter(address=message.connection.identity)
+
+
+    def createdbuserandtask(self, message):
+        print 'in app.createuserandtask:'
+        
+        firstword = str(message.text).lower().split(None, 1)[0]        
+        alltasks = Task.objects.all()
+        print alltasks
+
+        taskname, tasksubtype, arguments = None,None,None
+        
+        for t in alltasks:
+            # get user initiated task keyword
+            fn = "%s.%s.get_user_init_string()" % (t.module, t.className)
+            #print fn
+            keyword = eval(fn)
+            print 'keyword: %s; type(keyword): %s' % (keyword, type(keyword))
+            print 'firstword: %s; type(firstword): %s' % (firstword, type(firstword))
+
+            if firstword == keyword:
+                fn = "%s.%s.determine_task_type(message)" % (t.module, t.className)
+                print 'evaluating ttype'
+                ttype = eval(fn)
+                if ttype:
+                    taskname, tasksubtype, arguments = ttype
+                    break
+
+        if not all( (taskname, tasksubtype, arguments) ):
+            # couldn't find a matching task
+            return False
+        
+        # define patient
+        #     is the user in the db?
+        knownuser = self.knownuser(message)
+        print 'knownuser: %s' % knownuser
+        #     if not, add anonymous one to db.  
+        if not knownuser:
+            patient = Patient(address=message.connection.identity, first_name='Anonymous', last_name='User')
+            patient.save()
+            print 'created new patient in db. patient: %s' % patient
+        else:
+            patient = knownuser[0]
+            print 'there is a knownuser. patient: %s' % patient
+            
+        # find or create new sms.User
+        smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
+        
+        # create a new process
+        np = Process(
+            name=tasksubtype,
+            creator=None,
+            patient=patient
+            )
+        np.save()
+        
+        # schedule task to start now
+        d = {'task': taskname,
+             'user': smsuser.identity,
+             'process_id': np.id,
+             'args': arguments,
+             'schedule_date': datetime.now() }
+        tasks.taskscheduler.schedule(d)
+
+        # created and scheduled a task. message was handled, return True to handler.
+        return True
+        
+
     def finduser(self, identity=None, firstname=None, lastname=None):
         self.debug('in App.finduser(): identity: %s, firstname: %s, lastname: %s', identity, firstname, lastname)
         
@@ -184,17 +260,17 @@ class App(rapidsms.apps.base.AppBase):
             process = Process.objects.get(pk=postargs['process'])
         else:
             process = None
-        
-        print 'printing args: %s; type: %s' % (args, type(args))
 
+        self.debug('in app.ajax_POST_exec(): found process: %s', process)        
+        print 'printing args: %s; type: %s' % (args, type(args))
+ 
         # returns existing user, otherwise returns a new user 
         smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
 
         __import__(task.module, globals(), locals(), [task.className])   
         module = '%s.%s' % (task.module, task.className)
 
-        print module
-        print type(module)
+        # create task t
         if not args:
             t = eval(module)(smsuser)
         else:
@@ -205,12 +281,133 @@ class App(rapidsms.apps.base.AppBase):
         session.save()
 
         # create and start task
-        sm = sms.StateMachine(self, smsuser, t.interaction, session.id)
+        sm = sms.StateMachine(self, smsuser, t, session.id)
+
+        # create and save initial state of this new task as SerializedTask
+        d = {'t_args' : postargs['arguments'],
+             't_pblob' : sm.task.save(),
+             's_app' : self,
+             's_session_id' : session.id,
+             's_msgid' : sm.msgid,
+             's_done' : sm.done,
+             's_node' : sm.node.label,
+             's_event' : sm.event,
+             's_mbox' : sm.mbox if sm.mbox else '',
+             'm_sentcount' : sm.node.sentcount,
+             'i_initialnode' : sm.task.interaction.initialnode.label,
+             'u_nextmsgid' : smsuser.msgid.peek() }
+        st = SerializedTasks(**d)
+        st.save()        
+
         self.tm.addstatemachines(sm)
         self.tm.run()
         
         return {'status': 'OK'}
 
+
+    def savetask(self, s_session_id, **kwargs):
+        self.debug('in App.savetask(): session id: %s, ' )
+        # cols from task_serializedtasks
+        keys = ['t_args', 't_plob', 's_msgid', 's_done', 's_node', 's_event', 's_mbox', 'm_sentcount', 'i_initialnode', 'u_nextmsgid']
+
+         # .get() raises an exection if there is more than one match
+        st = SerializedTasks.objects.get(pk=s_session_id)
+        self.debug('cur st: %s', st)
+
+        for k in keys:
+            if k in kwargs:
+                # if kwargs['s_mbox'] == None:
+                if (k is 's_mbox') and (not kwargs[k]):
+                    # st.s_mbox = ''
+                    object.__setattr__(st, k, '')
+                else:
+                    # st.k = kwargs[k]
+                    object.__setattr__(st, k, kwargs[k]) 
+        
+        st.save()
+        
+        self.debug('new st: %s', st)
+
+
+    def system_restore(self, *args, **kwargs):
+
+        self.debug('in App.system_restore():')
+        
+        # find live tasks
+        # sts = SerializedTasks.objects.filter(s_done=False)
+        
+        # return all saved task
+        sts = SerializedTasks.objects.all()
+
+        for st in sts:
+            session = Session.objects.filter(pk=st.s_session_id)
+            # many sm's for each session so, there will always be one session.
+            assert(len(session)==1)
+
+            self.debug('found matching sessions: %s', session[0])
+            self.debug('found session: ')
+            self.debug('id:             %s', session[0].id)
+            self.debug('patient_id:     %s', session[0].patient_id)
+            self.debug('task_id:        %s', session[0].task_id)
+            self.debug('process_id:     %s', session[0].process_id)
+            self.debug('add_date:       %s', session[0].add_date)
+            self.debug('completed:      %s', session[0].completed)
+            self.debug('completed_date: %s', session[0].completed_date)
+            self.debug('timeout_date:   %s', session[0].timeout_date)
+            self.debug('state:          %s', session[0].state)
+            
+            # find or create smsuser
+            patient = Patient.objects.get(pk=session[0].patient_id)
+            smsuser = self.finduser(patient.address, patient.first_name, patient.last_name)
+            # need to be careful about setting the users's msgid...
+            smsuser.msgid.reset(st.s_msgid-1)
+
+            self.debug('resetting user.msgid: %s', st.s_msgid-1)
+
+            # make sure smsusers in memory are reset to their last state
+            if st.s_done:
+                self.debug('\n\npassing restore of dead st: %s', st)
+                # if there is no live statemachine, we want to restore user to the state it was after this sm was created.
+                # (helps when there are no live statemachines at restore)
+                self.debug('increment user id %s from: %s to: %s', smsuser.identity, smsuser.msgid.count, smsuser.msgid.next())
+                continue
+
+            self.debug('\n\nrestoring st: %s', st)
+
+            # re-create task
+            task = Task.objects.get(pk=session[0].task_id)
+            t_args = eval(json.loads(st.t_args))
+            __import__(task.module, globals(), locals(), [task.className])   
+            module = '%s.%s' % (task.module, task.className)
+            print module
+            print type(module)
+            if not t_args:
+                t = eval(module)(smsuser)
+            else:
+                t = eval(module)(smsuser, t_args)
+            # restore task state
+            print 'st.t_pblob: %s' % st.t_pblob
+            t.restore(st.t_pblob)
+            
+            # restore statemachine state, sm.msgid is incremented to st.u_nextmsgid at init
+            sm = sms.StateMachine(self, smsuser, t, st.s_session_id)
+            self.debug('\nsm.msgid (from smsuser.msgid.count): %s\nsmsuser.msgid.peek(): %s\nst.u_nextmsgid: %s\n',
+                       smsuser.msgid.count, smsuser.msgid.peek(), st.u_nextmsgid)
+            sm.done = False if st.s_done==0 else True
+            # find correct node in graph which matches the label we saved
+            for node in sm.interaction.graph.keys():
+                if node.label is st.s_node:
+                    sm.node = node
+            sm.node.sentcount = st.m_sentcount
+            sm.event = st.s_event
+            sm.mbox = None if st.s_mbox is '' else st.s_mbox
+            
+            self.tm.addstatemachines(sm)
+        
+
+    def sync():
+        # calls .restore() for each sms object sent
+        print 'STUB: app.sync()'
 
     def ajax_POST_timeout(self, getargs, postargs=None):
         patient = Patient.objects.get(pk=postargs['patient'])

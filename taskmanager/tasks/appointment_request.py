@@ -7,9 +7,13 @@
 #      each response, or transition, affects change by calling an optional user-defined callback
 #    * once a task object is instantiated, sms.TaskManager.run() (called from app.py) 
 #      starts the statemachine, sends out the first message, and handles responses 
-#      tracing a path through the graph which is the interaction.  
+#      tracing a path through the graph which is the interaction.
+
+#    * implement save(), restore(): ...
+
 #    * (future) authorship also becomes a possiblity since it would be easier to have a 
-#      task set-up from the gui...
+#      task set-up from the gui.
+
 
 import sms
 
@@ -21,8 +25,12 @@ from taskmanager.models import *
 from parsedatetime import parsedatetime
 import taskscheduler
 
-class AppointmentRequest(object):
+from task import BaseTask
+
+class AppointmentRequest(BaseTask):
     def __init__(self, user, args=None):
+
+        BaseTask.__init__(self)
 
         self.args = args
 
@@ -81,9 +89,66 @@ class AppointmentRequest(object):
                        m_valid_appt: []
                        }
 
-        self.interaction = sms.Interaction(self.graph, m_initial, self.__class__.__name__ + '_interaction')
+        super(AppointmentRequest, self).setinteraction(graph=self.graph, initialnode=m1, label='interaction')
 
-    
+    # developer is required to implement save()
+    # we save (most of) the stuff above, so what does the developer require in the functions below
+    # 
+    # self.args
+    # ...
+    #
+    def save(self):
+        print 'in %s.save(): ' % (self.__class__.__name__)
+        # save whatever you like in the parameter blob
+        pb = {}
+        pb['args'] = self.args
+        # # example of saving more stuff
+        # pb['data2'] = json.dumps(self.data2)
+        # pb['data1'] = json.dumps(self.data1)         
+        return json.dumps(pb)
+
+    # developer required to implement restore():
+    def restore(self, pb_str):
+        print 'in %s.restore() stub' % (self.__class__.__name__)
+        pb = json.loads(pb_str)
+        self.args = pb['args']
+
+    # uits: user can send in this string to immediately schedule this task
+    @staticmethod
+    def get_user_init_string():
+        return "apptreq"
+
+    # uits: these strings narrow down the request to the type of task needed.
+    @classmethod
+    def determine_task_type(cls, message):
+        # parses message and tries to figure out the sub task type
+        # if message has a keyword, determine taskname, tasktype, args and return them
+        
+        print 'in appointment request.determin_task_type():'
+
+        keywords = ('dexa', 'provider', 'echo', 'ekg', 'blood')
+        msg = str(message.text).lower()
+
+        for word in keywords:
+            if msg.find(word) > -1:
+                tt = TaskTemplate.objects.filter(task__className__exact=cls.__name__, name__icontains=word)[0]
+                print 'tt.task.id: %s' % tt.task.id
+                t = Task.objects.get(pk=tt.task.id)
+                print 't.name: %s; tt.name: %s, tt.arguments: %s' % (t.name, tt.name, tt.arguments)
+                arguments = eval(tt.arguments)
+
+                if word is 'blood':
+                    if msg.find('fasting') > -1:
+                        arguments['requires_fasting'] = 1
+                    else:
+                        arguments['requires_fasting'] = 0
+                        
+                print 't.name: %s; tt.name: %s; arguments: %s' % (t.name, tt.name, arguments)
+                return (t.name, tt.name, arguments)
+
+        # no match found
+        return None
+
     @staticmethod
     def match_date_or_time(msgtxt):
         pdt = parsedatetime.Calendar()
@@ -195,4 +260,3 @@ class AppointmentRequest(object):
         except Exception as e:
             print '%s' % (e)
 
-        

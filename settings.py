@@ -56,12 +56,12 @@ INSTALLED_BACKENDS = {
         "use_tls": "True",
         "poll_interval": "3" 
     }, 
-    "phone": {
-        "ENGINE": "rapidsms.backends.gsm",
-        "port": "/dev/ttyUSB0",
-        "baudrate": 115200,
-        "use_sim": "True",
-    }
+    # "phone": {
+    #     "ENGINE": "rapidsms.backends.gsm",
+    #     "port": "/dev/ttyUSB0",
+    #     "baudrate": 115200,
+    #     "use_sim": "True",
+    # }
 }
 
 
@@ -106,8 +106,9 @@ INSTALLED_APPS = [
     # for South
     # http://south.aeracode.org/docs/index.html
     "south",
-    # our app
-    "taskmanager", 
+    # our apps
+    "taskmanager",
+    "taskmanager.tasks"
 ]
 
 
