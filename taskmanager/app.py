@@ -247,6 +247,9 @@ class App(rapidsms.apps.base.AppBase):
         module = '%s.%s' % (task.module, task.className)
 
         # create task t
+        # FAISAL FIXME: this is where we should handle potential exceptions that the task may throw when executed
+        # it'd be nice to put the process into the "error" status here, for instance
+        
         if not args:
             t = eval(module)(smsuser)
         else:
