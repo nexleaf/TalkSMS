@@ -247,13 +247,21 @@ class App(rapidsms.apps.base.AppBase):
         module = '%s.%s' % (task.module, task.className)
 
         # create task t
-        # FAISAL FIXME: this is where we should handle potential exceptions that the task may throw when executed
-        # it'd be nice to put the process into the "error" status here, for instance
-        
-        if not args:
-            t = eval(module)(smsuser)
-        else:
-            t = eval(module)(smsuser, args)
+        # FAISAL: added an exception handler here to post an administrative alert
+        # FIXME: we need to add an 'error' status to a session to indicate that it didn't complete
+        try:
+            if not args:
+                t = eval(module)(smsuser)
+            else:
+                t = eval(module)(smsuser, args)
+        except:
+            # post an exception alert targeting the task manager service
+            alert_data = {'module': module, 'exception': sys.exc_info()[0]}
+            Alert.objects.add_alert("Task Exception", arguments=alert_data, patient=patient)
+            
+            # continue with the exception so we can see it on the console
+            # this also will prevent a session from being created (as should be the case)
+            raise
 
         # create a new session in db (sessions are only killed when statemachines are done)
         session = Session(patient=patient, task=task, process=process, state='initializing')
