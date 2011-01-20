@@ -31,31 +31,34 @@ class AppointmentReminder(BaseTask):
 
         # m1
         if 'nocancel' in self.args:
-            # resolves to:
-            # {% load parse_date %}Your {{ args.appt_type }} is approaching. Reply 'ok' to confirm.
             q1 = render_to_string('tasks/appts/reminder_nocancel.html', {'patient': self.patient, 'args': self.args})
         else: 
-            # resolves to:
-            #{% load parse_date %}Your {{ args.appt_type }} is approaching. Reply 'cancel' to cancel it or 'ok' to confirm.
             q1 = render_to_string('tasks/appts/reminder.html', {'patient': self.patient, 'args': self.args})
 
         r1 = sms.Response('ok', match_regex=r'ok')
         r2 = sms.Response('cancel', match_regex=r'cancel|no', callback=self.cancel)
         r_stop = sms.Response('stop', match_regex=r'stop', label='stop', callback=self.stopped)
-        m1 = sms.Message(q1, [r1, r2, r_stop])
 
-    
-        # m2
-        q2 = 'See you soon.'
-        m2 = sms.Message(q2, [], label='m2')
-        
-        # m3
-        q3 = 'Thank you for letting us know. Remember to also actually cancel your appointment with your care provider.'
-        m3 = sms.Message(q3, [])
+        # the initial reminder message
+        m1 = sms.Message(
+            q1,
+            [r1, r2, r_stop],
+            label='appt')
 
-        # message sent when the user decides to stop
-        m_stop = sms.Message('Ok, stopping messages now. Thank you for participating.', [])
+        # user ok'd appointment
+        m2 = sms.Message(
+            'See you soon.', [],
+            label='appt')
 
+        # user cancelled appointment
+        m3 = sms.Message(
+            'Thank you for letting us know. Remember to also actually cancel your appointment with your care provider.', [],
+            label='appt')
+
+        # user wants all messages stopped
+        m_stop = sms.Message(
+            'Ok, stopping messages now. Thank you for participating.', [],
+            label='appt')
         
         self.graph = { m1: [m2, m3, m_stop],
                        m2: [],
