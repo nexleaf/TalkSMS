@@ -57,29 +57,36 @@ class AppointmentRequest(BaseTask):
         # message sent asking the user to schedule an appt. and to text us back the date and time
         m_initial = sms.Message(
             render_to_string('tasks/appts/request.html', {'patient': self.patient, 'args': self.args}),
-            initial_responses)
+            initial_responses,
+            label='remind')
         
         # message sent when the user decides to stop
-        m_stop = sms.Message('Ok, stopping messages now. Thank you for participating.', [])
+        m_stop = sms.Message(
+            'Ok, stopping messages now. Thank you for participating.', [],
+            label='remind')
 
         # message sent if the user doesn't include both date and time
         # this replicates the expected responses of the initial node because it basically is the initial node
         m_need_date_and_time = sms.Message(
             'Please respond with both the date and the time of the appointment you scheduled (e.g. 1/15/2011 8:30pm).',
-            initial_responses)
+            initial_responses,
+            label='remind')
 
         # message sent when the user delays us by saying 'ok'; we prompt them for more info when they're ready
         # this replicates the expected responses of the initial node because it basically is the initial node
         m_stalling = sms.Message(
             'Please respond with both the date and the time of the appointment when you\'ve scheduled it, or \'stop\' if you don\'t want to schedule one now.',
-            initial_responses)
+            initial_responses,
+            label='remind')
         
         # FAISAL: left to demonstrate no match callback parameter
         # m1 = sms.Message(q1, [r1,r2], label='m1', no_match_callback=self.no_match_test)
         
         # message sent when the user sends us a valid date and time
         # the response that leads here actually sets up the appointments
-        m_valid_appt = sms.Message(render_to_string('tasks/appts/response.html', {'args': self.args}), [])
+        m_valid_appt = sms.Message(
+            render_to_string('tasks/appts/response.html', {'args': self.args}), [],
+            label='remind')
 
         # lists of transitions that'll be used for every node that takes the same input as the initial
         # this needs to match up pairwise with initial_responses :\
@@ -94,7 +101,7 @@ class AppointmentRequest(BaseTask):
                        m_valid_appt: []
                        }
 
-        super(AppointmentRequest, self).setinteraction(graph=self.graph, initialnode=m1, label='interaction')
+        super(AppointmentRequest, self).setinteraction(graph=self.graph, initialnode=m_initial, label='interaction')
 
 
     def no_match_test(self, node, response, session_id):
