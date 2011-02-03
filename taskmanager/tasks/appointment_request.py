@@ -89,7 +89,7 @@ class AppointmentRequest(BaseTask):
         # the response that leads here actually sets up the appointments
         m_valid_appt = sms.Message(
             "returned by custom msg callback", [],
-            label='remind', custom_message_callback=valid_appt_msg_callback)
+            label='remind', custom_message_callback=self.valid_appt_msg_callback)
 
         # lists of transitions that'll be used for every node that takes the same input as the initial
         # this needs to match up pairwise with initial_responses :\
