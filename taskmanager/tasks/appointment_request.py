@@ -114,16 +114,17 @@ class AppointmentRequest(BaseTask):
         t = datetime.now()
         return "Stopping messages at %s. Thank you for participating" % (t)
 
-    def valid_appt_msg_callback(self, message_obj, recieved_msg):
+    def valid_appt_msg_callback(self, message_obj, received_msg):
+        print "*** CALLBACK GOT THE FOLLOWING TEXT: " + str(received_msg)
         # parse out the date so we can tell it to them in the message
         # this is guaranteed to work since it's gone through validation already
         pdt = parsedatetime.Calendar()
-        (res, retval) = pdt.parse(recieved_msg)
+        (res, retval) = pdt.parse(received_msg)
         t = datetime(*res[0:7])
         appttime = t.strftime("%A %I:%M%p, %B %d, %Y")
 
         # return them a message that includes the time they selected in the message body (finally! :D)
-        return render_to_string('tasks/appts/response.html', {'args': self.args, 'apptime': appttime})
+        return render_to_string('tasks/appts/response.html', {'args': self.args, 'appttime': appttime})
 
     
     # developer is required to implement save()

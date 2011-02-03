@@ -1,9 +1,9 @@
 # sms.py: TalkSMS library
 
-import string
-import re
+import sys, json, re, traceback, string
 from collections import deque
 import itertools
+from taskmanager.models import Alert
 
 class Response(object):
 
@@ -543,16 +543,27 @@ class TaskManager(object):
         return statemachine
 
     def save_curr_statemachine(self, statemachine):
-        # save current state
-        d = {'t_pblob' : statemachine.task.save(),
-             's_tnsid' : statemachine.tnsid,
-             's_done' : statemachine.done,
-             's_node' : statemachine.node.label,
-             's_last_response' : statemachine.last_response,
-             'm_sentcount' : statemachine.node.sentcount,
-             'm_retries' : statemachine.node.retries,
-             'm_timeout' : statemachine.node.timeout }
-        self.app.savetask(statemachine.session_id, **d)
+        # FAISAL: FIXME: adding catch-all exception handler here so that it doesn't bring down the system, at least
+        try:
+            # save current state
+            d = {'t_pblob' : statemachine.task.save(),
+                 's_tnsid' : statemachine.tnsid,
+                 's_done' : statemachine.done,
+                 's_node' : statemachine.node.label,
+                 's_last_response' : statemachine.last_response,
+                 'm_sentcount' : statemachine.node.sentcount,
+                 'm_retries' : statemachine.node.retries,
+                 'm_timeout' : statemachine.node.timeout }
+            self.app.savetask(statemachine.session_id, **d)
+        except:
+            # FAISAL: post an administrative alert, but let things continue
+            # extract exception info
+            cla, exc, trbk = sys.exc_info()
+            excName = cla.__name__
+
+            # post an exception alert targeting the task manager service
+            alert_data = {'taskname': str(statemachine.task), 'name': excName, 'traceback': traceback.format_exc()}
+            Alert.objects.add_alert("Task Save Exception", arguments=alert_data, patient=statemachine.task.patient)
     
     def send_curr_message(self, statemachine):
         # Send the current message for this state machine. Only call this on init or from timeout
