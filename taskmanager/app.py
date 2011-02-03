@@ -1,4 +1,4 @@
-import sys, json, re
+import sys, json, re, traceback
 from datetime import datetime, timedelta
 
 import rapidsms
@@ -154,7 +154,7 @@ class App(rapidsms.apps.base.AppBase):
             print 'keyword: %s; type(keyword): %s' % (keyword, type(keyword))
             print 'firstword: %s; type(firstword): %s' % (firstword, type(firstword))
 
-            if firstword == keyword:
+            if firstword.lower() == keyword:
                 fn = "%s.%s.determine_task_type(message)" % (t.module, t.className)
                 print 'evaluating ttype'
                 ttype = eval(fn)
@@ -255,8 +255,12 @@ class App(rapidsms.apps.base.AppBase):
             else:
                 t = eval(module)(smsuser, args)
         except:
+            # extract exception info
+            cla, exc, trbk = sys.exc_info()
+            excName = cla.__name__
+
             # post an exception alert targeting the task manager service
-            alert_data = {'module': module, 'exception': sys.exc_info()[0]}
+            alert_data = {'module': module, 'name': excName, 'traceback': traceback.format_exc()}
             Alert.objects.add_alert("Task Exception", arguments=alert_data, patient=patient)
             
             # continue with the exception so we can see it on the console

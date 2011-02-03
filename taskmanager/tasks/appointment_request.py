@@ -28,6 +28,9 @@ import taskscheduler
 from task import BaseTask
 
 class AppointmentRequest(BaseTask):
+    RETRY_COUNT = 2 # sends it up to two more times before giving up
+    RETRY_TIMEOUT = 240 # 240 minutes = 4 hours
+    
     def __init__(self, user, args=None):
 
         BaseTask.__init__(self)
@@ -58,7 +61,7 @@ class AppointmentRequest(BaseTask):
         m_initial = sms.Message(
             render_to_string('tasks/appts/request.html', {'patient': self.patient, 'args': self.args}),
             initial_responses,
-            label='remind')
+            label='remind', retries=AppointmentRequest.RETRY_COUNT, timeout=AppointmentRequest.RETRY_TIMEOUT)
         
         # message sent when the user decides to stop
         m_stop = sms.Message(
@@ -70,14 +73,14 @@ class AppointmentRequest(BaseTask):
         m_need_date_and_time = sms.Message(
             'Please respond with both the date and the time of the appointment you scheduled (e.g. 1/15/2011 8:30pm).',
             initial_responses,
-            label='remind')
+            label='remind', retries=AppointmentRequest.RETRY_COUNT, timeout=AppointmentRequest.RETRY_TIMEOUT)
 
         # message sent when the user delays us by saying 'ok'; we prompt them for more info when they're ready
         # this replicates the expected responses of the initial node because it basically is the initial node
         m_stalling = sms.Message(
             'Please respond with both the date and the time of the appointment when you\'ve scheduled it, or \'stop\' if you don\'t want to schedule one now.',
             initial_responses,
-            label='remind')
+            label='remind', retries=AppointmentRequest.RETRY_COUNT, timeout=AppointmentRequest.RETRY_TIMEOUT)
         
         # FAISAL: left to demonstrate no match callback parameter
         # m1 = sms.Message(q1, [r1,r2], label='m1', no_match_callback=self.no_match_test)
@@ -85,8 +88,8 @@ class AppointmentRequest(BaseTask):
         # message sent when the user sends us a valid date and time
         # the response that leads here actually sets up the appointments
         m_valid_appt = sms.Message(
-            render_to_string('tasks/appts/response.html', {'args': self.args}), [],
-            label='remind')
+            "returned by custom msg callback", [],
+            label='remind', custom_message_callback=valid_appt_msg_callback)
 
         # lists of transitions that'll be used for every node that takes the same input as the initial
         # this needs to match up pairwise with initial_responses :\
@@ -110,6 +113,17 @@ class AppointmentRequest(BaseTask):
     def custom_message_test(self, message_obj):
         t = datetime.now()
         return "Stopping messages at %s. Thank you for participating" % (t)
+
+    def valid_appt_msg_callback(self, message_obj, recieved_msg):
+        # parse out the date so we can tell it to them in the message
+        # this is guaranteed to work since it's gone through validation already
+        pdt = parsedatetime.Calendar()
+        (res, retval) = pdt.parse(recieved_msg)
+        t = datetime(*res[0:7])
+        appttime = t.strftime("%A %I:%M%p, %B %d, %Y")
+
+        # return them a message that includes the time they selected in the message body (finally! :D)
+        return render_to_string('tasks/appts/response.html', {'args': self.args, 'apptime': appttime})
 
     
     # developer is required to implement save()

@@ -13,6 +13,8 @@ import taskscheduler
 from task import BaseTask
 
 class AppointmentFollowup(BaseTask):
+    RETRY_COUNT = 2 # sends it up to two more times before giving up
+    RETRY_TIMEOUT = 240 # 240 minutes = 4 hours
     
     def __init__(self, user, args=None):
 
@@ -35,7 +37,8 @@ class AppointmentFollowup(BaseTask):
         # message asking them for feedback after their appointment
         m1 = sms.Message(
             render_to_string('tasks/appts/followup.html', {'patient': self.patient, 'args': self.args}),
-            [r_feedback, r_missed], label='m1')
+            [r_feedback, r_missed],
+            label='m1', retries=AppointmentFollowup.RETRY_COUNT, timeout=AppointmentFollowup.RETRY_TIMEOUT)
 
         # message sent when user provides feedback in the form 'feedback <my message here>'
         m_thanks = sms.Message('Thank you for your feedback.', [], label='thanks')

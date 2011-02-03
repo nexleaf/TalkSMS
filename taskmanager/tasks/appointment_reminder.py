@@ -11,6 +11,9 @@ from taskmanager.models import *
 from task import BaseTask
 
 class AppointmentReminder(BaseTask):
+    RETRY_COUNT = 2 # sends it up to two more times before giving up
+    RETRY_TIMEOUT = 240 # 240 minutes = 4 hours
+    
     def __init__(self, user, args=None):
 
         BaseTask.__init__(self)
@@ -35,15 +38,15 @@ class AppointmentReminder(BaseTask):
         else: 
             q1 = render_to_string('tasks/appts/reminder.html', {'patient': self.patient, 'args': self.args})
 
-        r1 = sms.Response('ok', match_regex=r'ok')
-        r2 = sms.Response('cancel', match_regex=r'cancel|no', callback=self.cancel)
+        r1 = sms.Response('ok', match_regex=r'ok', label='ok')
+        r2 = sms.Response('cancel', match_regex=r'cancel|no', callback=self.cancel, label='cancel')
         r_stop = sms.Response('stop', match_regex=r'stop', label='stop', callback=self.stopped)
 
         # the initial reminder message
         m1 = sms.Message(
             q1,
             [r1, r2, r_stop],
-            label='appt')
+            label='appt', retries=AppointmentReminder.RETRY_COUNT, timeout=AppointmentReminder.RETRY_TIMEOUT)
 
         # user ok'd appointment
         m2 = sms.Message(

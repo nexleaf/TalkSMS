@@ -494,14 +494,15 @@ class TaskManager(object):
 
         
     @staticmethod
-    def build_send_str(node, tnsid):
+    def build_send_str(node, tnsid, received_msg=None):
         print 'in TaskManager.build_send_str(): node.retries: %d, node.sentcount %d' % (node.retries, node.sentcount)
 
         basetext = ''
         # call the message objets developer defined custom message callback to get a string
         if node.custom_message_callback is not None:
             print 'calling custom response callback for %s' % (node.label)
-            basetext = node.custom_message_callback(node) # what else should we pass in?
+            # FAISAL: added a parameter to the callback so we can get at the user's text, if it exists
+            basetext = node.custom_message_callback(node, received_msg) # what else should we pass in?
             print 'got response string %s' % (basetext)
         else:
             basetext = node.question
@@ -598,8 +599,6 @@ class TaskManager(object):
         self.log.debug('in TaskManager.recv(): ')
 
         response = 'Command not understood.'
-        # need to look for exceptions here... what if they send an empty string?
-        firststring = rmessage.text.lower().split(None, 1)[0]
         
         # Always check for UIT
         # user-initiated-task? see if the message contains a keyword associated with a task
@@ -609,16 +608,28 @@ class TaskManager(object):
             # fall-through response string
             response = 'Response not understood. Please prepend the message id number to your response.'
             
-            # strip off msgid and text from the repsonse 
+            # strip off msgid and text from the repsonse
 
-            rtnsid = firststring
-            a,b,rtext = rmessage.text.partition(str(rtnsid))
-            assert(b==rtnsid)
-            rtext = rtext.splitlines()[0].strip()
+            # first, split the message into rtnsid and rtext
+            parts = rmessage.text.split(None, 1)
+            rtnsid = parts[0].lower() # FIXME: forcing this lower for now to see if it causes a match
+            if len(parts) > 1:
+                rtext = parts[1]
+            else:
+                rtext = "" # FIXME: there's no message, leave it blank and fix this one later
+            
+            # FAISAL: removed spurious assert that seems to exist solely to prevent modifications in another file
+            # why is this here?
+            # assert(b==rtnsid)
+
+            # FAISAL: not sure what the below does...i imagine it gets the first line in the text
+            # but why would there be multiple lines?
+            # rtext = rtext.splitlines()[0].strip()
+
             self.log.debug('found msgid in response' +\
                            'rmsgid: \'%s\'; rtext: \'%s\'; peer: \'%s\'' % (rtnsid, rtext, rmessage.connection.identity))           
 
-            # first, remote task if done
+            # first, remove task if done
             self.scrub_statemachines()
 
             # then, find the correct statemachine
@@ -639,7 +650,7 @@ class TaskManager(object):
 
                     # support cens gui
                     # log received msg
-                    self.app.log_message(sm.session_id, rtnsid + ' ' + rtext, False)
+                    self.app.log_message(sm.session_id, rmessage.text, False)
 
                     (optional_response, retcode) = sm.handle_message(rtext)
                     if retcode is "ok":
@@ -654,7 +665,8 @@ class TaskManager(object):
                         self.log.debug('no more retries, failing')
                     elif retcode is 'finish':
                         if sm.node.do_not_send is False:
-                            response = TaskManager.build_send_str(sm.node, sm.tnsid)
+                            # FAISAL: now passing the user's text to the response builder so we have access to it in the response callback
+                            response = TaskManager.build_send_str(sm.node, sm.tnsid, received_msg=rtext)
                             self.log.debug('and response = %s, do_not_send: %s' % (response, sm.node.do_not_send))
                             self.app.log_message(sm.session_id, response, True)
                         else:
