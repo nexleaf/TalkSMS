@@ -1,5 +1,4 @@
 import sms
-from taskmanager.tasks.models import SerializedTasks
 
 class BaseTask(object):
     """base class for tasks"""

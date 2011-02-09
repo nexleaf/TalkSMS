@@ -1,5 +1,4 @@
 from taskmanager.models import *
-from taskmanager.tasks.models import *
 from rapidsms.contrib.scheduler.models import EventSchedule, ALL
 
 # run with ./manage shell < erase_temproraries.txt
@@ -8,6 +7,6 @@ ScheduledTask.objects.all().delete()
 Session.objects.all().delete()
 Process.objects.all().delete()
 Alert.objects.all().delete()
-SerializedTasks.objects.all().delete()
+SerializedTask.objects.all().delete()
 EventSchedule.objects.all().delete()
 

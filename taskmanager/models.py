@@ -296,3 +296,71 @@ class ScheduledTask(models.Model):
 
     def __unicode__(self):
         return "Scheduled Task for %s on %s" % (self.patient.address, self.task.name)
+
+# =================================================================
+# ==== Serialized Task
+# ==== (used to store state of running tasks between system reboots)
+# =================================================================
+
+class SerializedTask(models.Model):
+    # orig args sent to task
+    t_args = models.CharField(max_length=500)
+    # parameter blob: json_self.args from the task
+    t_pblob = models.CharField(max_length=500)
+
+    ## serialized attributes for sms.StateMachine, representing state at last .save()
+    s_app = models.CharField(max_length=50)
+
+    # FAISAL: replaced s_session_id being an IntegerField with it being a real foreign key
+    ## we will use this as a foreign key into the Session/taskmanager_session table
+    # s_session_id = models.IntegerField(max_length=50)
+    s_session_id = models.ForeignKey(Session)
+
+    # tasknamespace id's can be saved as json strings so that switching between simple id types (string, int)
+    #    doesn't change the db model.
+    s_tnsid = models.CharField(max_length=50)
+
+    s_done = models.BooleanField(max_length=50)
+    # label of the message node that's currently referenced in the statemachine as self.node.
+    s_node = models.CharField(max_length=50)
+    #s_event = models.CharField(max_length=50)
+    # last response left in statemachine.mbox
+    s_last_response = models.CharField(max_length=150)
+
+    ## serialized attributes for sms.Message 
+    m_sentcount = models.IntegerField(max_length=5)
+    m_retries = models.IntegerField(max_length=5)
+    m_timeout = models.IntegerField(max_length=8)
+    
+    ## serialized attributes for sms.Interaction
+    # label for the initial node
+    i_initialnode = models.CharField(max_length=30) 
+    
+
+    
+    def __unicode__(self):
+        return """
+    t_args: %s
+    t_pblob: %s
+    s_app: %s
+    s_session_id: %s
+    s_tnsid: %s
+    s_done: %s
+    s_node: %s
+    s_last_response: %s
+    m_sent_count: %s
+    m_retries: %s
+    m_timeout: %s
+    i_initialnode: %s
+        """ % (self.t_args,\
+               self.t_pblob,\
+               self.s_app,\
+               self.s_session_id,\
+               self.s_tnsid, \
+               self.s_done,\
+               self.s_node,\
+               self.s_last_response,\
+               self.m_sentcount, \
+               self.m_retries,\
+               self.m_timeout,\
+               self.i_initialnode)

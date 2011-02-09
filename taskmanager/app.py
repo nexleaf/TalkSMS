@@ -10,8 +10,6 @@ import tasks.appointment_reminder
 import tasks.appointment_followup
 import tasks.taskscheduler
 from taskmanager.models import *
-from taskmanager.tasks.models import SerializedTasks
-
 
 class App(rapidsms.apps.base.AppBase):
 
@@ -287,7 +285,7 @@ class App(rapidsms.apps.base.AppBase):
              'm_retries' : sm.node.retries,
              'm_timeout' : sm.node.timeout,
              'i_initialnode' : sm.task.interaction.initialnode.label}
-        st = SerializedTasks(**d)
+        st = SerializedTask(**d)
         st.save()        
 
         self.tm.addstatemachines(sm)
@@ -302,7 +300,7 @@ class App(rapidsms.apps.base.AppBase):
         keys = ['t_args', 't_plob', 's_tnsid', 's_done', 's_node', 's_last_response', 'm_sentcount', 'm_retries', 'm_timeout', 'i_initialnode']
 
          # .get() raises an exection if there is more than one match
-        st = SerializedTasks.objects.get(pk=s_session_id)
+        st = SerializedTask.objects.get(pk=s_session_id)
         self.debug('cur st: %s', st)
 
         for k in keys:
@@ -322,7 +320,7 @@ class App(rapidsms.apps.base.AppBase):
         # sts = SerializedTasks.objects.filter(s_done=False)
         
         # return all saved task
-        sts = SerializedTasks.objects.all()
+        sts = SerializedTask.objects.all()
 
         for st in sts:
             session = Session.objects.filter(pk=st.s_session_id)
