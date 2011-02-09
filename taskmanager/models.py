@@ -314,7 +314,7 @@ class SerializedTask(models.Model):
     # FAISAL: replaced s_session_id being an IntegerField with it being a real foreign key
     ## we will use this as a foreign key into the Session/taskmanager_session table
     # s_session_id = models.IntegerField(max_length=50)
-    s_session_id = models.ForeignKey(Session)
+    s_session = models.ForeignKey(Session)
 
     # tasknamespace id's can be saved as json strings so that switching between simple id types (string, int)
     #    doesn't change the db model.

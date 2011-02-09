@@ -276,7 +276,7 @@ class App(rapidsms.apps.base.AppBase):
         d = {'t_args' : postargs['arguments'],
              't_pblob' : sm.task.save(),
              's_app' : self,
-             's_session_id' : session.id,
+             's_session' : session,
              's_tnsid' : sm.tnsid,
              's_done' : sm.done,
              's_node' : sm.node.label,
