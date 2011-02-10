@@ -119,7 +119,7 @@ class AppointmentFollowup(BaseTask):
 
         # support cens gui: app_date used to display appointment time only
         # Tuesday, 5:30pm, November 03, 2010
-        appttime = t.strftime("%A %I:%M%p, %B %d, %Y")
+        appttime = t.strftime("%m/%d/%Y %I:%M%p")
         # make sure we pass on the appointment date
         self.args['appt_date'] = appttime
         print 'self.args: %s' % (self.args)

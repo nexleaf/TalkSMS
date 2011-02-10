@@ -115,13 +115,14 @@ class AppointmentRequest(BaseTask):
         return "Stopping messages at %s. Thank you for participating" % (t)
 
     def valid_appt_msg_callback(self, message_obj, received_msg):
-        print "*** CALLBACK GOT THE FOLLOWING TEXT: " + str(received_msg)
         # parse out the date so we can tell it to them in the message
         # this is guaranteed to work since it's gone through validation already
         pdt = parsedatetime.Calendar()
         (res, retval) = pdt.parse(received_msg)
         t = datetime(*res[0:7])
-        appttime = t.strftime("%A %I:%M%p, %B %d, %Y")
+        appttime = t.strftime("%m/%d/%Y %I:%M%p")
+
+        print "*** CALLBACK GOT THE FOLLOWING TEXT: " + str(received_msg) + ", parsed as: " + str(appttime)
 
         # return them a message that includes the time they selected in the message body (finally! :D)
         return render_to_string('tasks/appts/response.html', {'args': self.args, 'appttime': appttime})
@@ -250,16 +251,16 @@ class AppointmentRequest(BaseTask):
         i = timedelta(microseconds=1)
 
         # support cens gui: appt_date used to display the appointment time only
-        #                     Tuesday, 5:30pm, November 03, 2010
-        appttime = t.strftime("%A %I:%M%p, %B %d, %Y")
+        # FAISAL: changed the date output format b/c parsedatetime doesn't read past the day of the week :\
+        appttime = t.strftime("%m/%d/%Y %I:%M%p")
         # make sure we pass on the appointment date
         self.args['appt_date'] = appttime
         print 'self.args: %s' % (self.args)
         
-        testing = False
+        testing = True
         if testing:
             # easier to track msgs
-            s = timedelta(seconds=300) # 5 minutes
+            s = timedelta(seconds=120) # 5 minutes
             a = t+s    # first reminder 5 minutes after datetime reply
             b = t+2*s  # second is 10 minutes after
             c = t+3*s  # third is 15 after
