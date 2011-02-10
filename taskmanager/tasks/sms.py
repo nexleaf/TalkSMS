@@ -476,15 +476,16 @@ class TaskManager(object):
     def scrub_statemachines(self):
         """remove done statemachine from user's and taskmanager's lists"""
 
-        scrublist = []
+##        scrublist = []
         try:
-            for sm in self.uism:
-                if sm.done:
-                    scrublist.append(sm)
-            for sm in scrublist:
-                self.log.debug('in TaskManager.scrub_statemachines(): deleting statemachine: %s from self.uism', s,)
-                i = self.uism.index(sm)
-                self.uism.pop(i)
+##            for sm in self.uism:
+##                if sm.done:
+##                    scrublist.append(sm)
+##            for sm in scrublist:
+##                self.log.debug('in TaskManager.scrub_statemachines(): deleting statemachine: %s from self.uism', s,)
+##                i = self.uism.index(sm)
+##                self.uism.pop(i)
+            self.uism = filter(lambda x: not x.done, self.uism)
         except ValueError:
             self.log.error('statemachine is not in self.uism')
             return
