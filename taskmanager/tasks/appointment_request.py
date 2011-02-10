@@ -49,23 +49,29 @@ class AppointmentRequest(BaseTask):
 
         # first we set up all the expected responses
         # idealy this'd be directly before each message, but most of these responses are repeated in this case
-        r_stop = sms.Response('stop', match_regex=r'stop', label='stop', callback=self.appointment_cancelled_alert)
+        r_cancel = sms.Response('cancel', match_regex=r'cancel|no', label='cancel', callback=self.appointment_cancelled_alert)
+        r_stop = sms.Response('stop', match_regex=r'stop', label='stop', callback=self.appointment_stopped_alert)
         r_need_date_and_time = sms.Response('asdf', match_callback=AppointmentRequest.match_non_date_and_time, label='non_datetime')
         r_stalling = sms.Response('ok', match_regex=r'ok', label='stalling')
         r_valid_appt = sms.Response('today at 3pm', match_callback=AppointmentRequest.match_date_and_time, label='datetime', callback=self.schedule_reminders)
         
         # lists of responses that'll be used for every node that takes the same input as the initial
-        initial_responses = [r_stop, r_stalling, r_need_date_and_time, r_valid_appt]
+        initial_responses = [r_cancel, r_stop, r_stalling, r_need_date_and_time, r_valid_appt]
 
         # message sent asking the user to schedule an appt. and to text us back the date and time
         m_initial = sms.Message(
             render_to_string('tasks/appts/request.html', {'patient': self.patient, 'args': self.args}),
             initial_responses,
             label='remind', retries=AppointmentRequest.RETRY_COUNT, timeout=AppointmentRequest.RETRY_TIMEOUT)
+
+        # message sent when the user doesn't want reminders for whatever reason
+        m_cancel = sms.Message(
+            'Ok, you will not be sent any additional reminders for this appointment.', [],
+            label='remind')
         
         # message sent when the user decides to stop
         m_stop = sms.Message(
-            'Ok, stopping messages now. Thank you for participating.', [],
+            'Ok, stopping all messages now. Thank you for participating.', [],
             label='remind')
 
         # message sent if the user doesn't include both date and time
@@ -93,11 +99,12 @@ class AppointmentRequest(BaseTask):
 
         # lists of transitions that'll be used for every node that takes the same input as the initial
         # this needs to match up pairwise with initial_responses :\
-        initial_transitions = [m_stop, m_stalling, m_need_date_and_time, m_valid_appt]
+        initial_transitions = [m_cancel, m_stop, m_stalling, m_need_date_and_time, m_valid_appt]
 
         # define a super class with .restore() in it. below, user will call createGraph(), createInteraction()
         # which remember handles to graph and interaction. when .restore() is called it just updates the node we're at searching with the label.
         self.graph = { m_initial: initial_transitions,
+                       m_cancel: [],
                        m_stop: [],
                        m_need_date_and_time: initial_transitions,
                        m_stalling: initial_transitions,
@@ -213,8 +220,19 @@ class AppointmentRequest(BaseTask):
         else:
             return res
         
-    
     def appointment_cancelled_alert(self, *args, **kwargs):
+        response = kwargs['response']
+        session_id = kwargs['session_id']
+
+        # no halting here, but we're not going to continue the reminder process -- we're done
+
+        alert_args = {}
+        if self.patient and session_id is not None:
+            alert_args['url'] = '/taskmanager/patients/%d/history/#session_%d' % (self.patient.id, session_id)
+        alert_args.update(args)
+        Alert.objects.add_alert("Opted-Out of Reminders", arguments=alert_args, patient=self.patient)
+    
+    def appointment_stopped_alert(self, *args, **kwargs):
         response = kwargs['response']
         session_id = kwargs['session_id']
 

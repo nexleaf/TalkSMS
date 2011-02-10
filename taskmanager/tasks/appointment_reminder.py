@@ -11,7 +11,7 @@ from taskmanager.models import *
 from task import BaseTask
 
 class AppointmentReminder(BaseTask):
-    RETRY_COUNT = 2 # sends it up to two more times before giving up
+    RETRY_COUNT = 0 # allow these reminders to be silently dropped
     RETRY_TIMEOUT = 240 # 240 minutes = 4 hours
     
     def __init__(self, user, args=None):
