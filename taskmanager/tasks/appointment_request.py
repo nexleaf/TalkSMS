@@ -29,7 +29,7 @@ from task import BaseTask
 
 class AppointmentRequest(BaseTask):
     RETRY_COUNT = 2 # sends it up to two more times before giving up
-    RETRY_TIMEOUT = 240 # 240 minutes = 4 hours
+    RETRY_TIMEOUT = 60*24 # 60*24 = 1 day
     
     def __init__(self, user, args=None):
 
@@ -49,14 +49,14 @@ class AppointmentRequest(BaseTask):
 
         # first we set up all the expected responses
         # idealy this'd be directly before each message, but most of these responses are repeated in this case
-        r_cancel = sms.Response('cancel', match_regex=r'cancel|no', label='cancel', callback=self.appointment_cancelled_alert)
-        r_stop = sms.Response('stop', match_regex=r'stop', label='stop', callback=self.appointment_stopped_alert)
+        # r_cancel = sms.Response('cancel', match_regex=r'cancel|no', label='cancel', callback=self.appointment_cancelled_alert)
+        r_stop = sms.Response('stop', match_regex=r'cancel|no|stop', label='stop', callback=self.appointment_stopped_alert)
         r_need_date_and_time = sms.Response('asdf', match_callback=AppointmentRequest.match_non_date_and_time, label='non_datetime')
         r_stalling = sms.Response('ok', match_regex=r'ok', label='stalling')
         r_valid_appt = sms.Response('today at 3pm', match_callback=AppointmentRequest.match_date_and_time, label='datetime', callback=self.schedule_reminders)
         
         # lists of responses that'll be used for every node that takes the same input as the initial
-        initial_responses = [r_cancel, r_stop, r_stalling, r_need_date_and_time, r_valid_appt]
+        initial_responses = [r_stop, r_stalling, r_need_date_and_time, r_valid_appt]
 
         # message sent asking the user to schedule an appt. and to text us back the date and time
         m_initial = sms.Message(
@@ -65,6 +65,7 @@ class AppointmentRequest(BaseTask):
             label='remind', retries=AppointmentRequest.RETRY_COUNT, timeout=AppointmentRequest.RETRY_TIMEOUT)
 
         # message sent when the user doesn't want reminders for whatever reason
+        # FAISAL: this is currently disabled -- 'no', 'stop', and 'cancel' are all treated as full stops
         m_cancel = sms.Message(
             'Ok, you will not be sent any additional reminders for this appointment.', [],
             label='remind')
@@ -99,12 +100,11 @@ class AppointmentRequest(BaseTask):
 
         # lists of transitions that'll be used for every node that takes the same input as the initial
         # this needs to match up pairwise with initial_responses :\
-        initial_transitions = [m_cancel, m_stop, m_stalling, m_need_date_and_time, m_valid_appt]
+        initial_transitions = [m_stop, m_stalling, m_need_date_and_time, m_valid_appt]
 
         # define a super class with .restore() in it. below, user will call createGraph(), createInteraction()
         # which remember handles to graph and interaction. when .restore() is called it just updates the node we're at searching with the label.
         self.graph = { m_initial: initial_transitions,
-                       m_cancel: [],
                        m_stop: [],
                        m_need_date_and_time: initial_transitions,
                        m_stalling: initial_transitions,
@@ -275,7 +275,7 @@ class AppointmentRequest(BaseTask):
         self.args['appt_date'] = appttime
         print 'self.args: %s' % (self.args)
         
-        testing = False
+        testing = True
 
         if testing:
             # easier to track msgs

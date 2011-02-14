@@ -96,9 +96,9 @@ class AppointmentReminder(BaseTask):
         alert_args.update(args)
         Alert.objects.add_alert("Appointment Canceled", arguments=alert_args, patient=self.patient)
 
-        # deactivate all the old scheduled tasks on this process
-        # the statemachine ends after this callback, no need to cancel any response reminders.
-        ScheduledTask.objects.filter(process=session.process).update(active=False)
+        # remove the scheduled tasks since they're no longer needed
+        # we could make them active=false, but they'll still show up as scheduled in the interface
+        ScheduledTask.objects.filter(process=session.process).delete()
 
     def save(self):
         print 'in %s.save(): ' % (self.__class__.__name__)

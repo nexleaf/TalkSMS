@@ -14,7 +14,7 @@ from task import BaseTask
 
 class AppointmentFollowup(BaseTask):
     RETRY_COUNT = 2 # sends it up to two more times before giving up
-    RETRY_TIMEOUT = 480 # 480 minutes = 8 hours
+    RETRY_TIMEOUT = 60*24 # 60*24 = 1 day
     
     def __init__(self, user, args=None):
 
