@@ -33,6 +33,11 @@ class App(rapidsms.apps.base.AppBase):
     def handle(self, message):
         self.debug('in App.handle(): message type: %s, message.text: %s', type(message),  message.text)
 
+        # FAISAL: attempting to fix the non-ascii characters bug
+        # the below is a list comprehension that produces a list, then is join()'d back into a string
+        # we strip out all characters with an ord > 128
+        message.text = "".join([c for c in message.text if ord(c) <= 128])
+                                
         response = self.tm.recv(message)
 
         if response is None:
