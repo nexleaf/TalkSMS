@@ -511,7 +511,7 @@ class TaskManager(object):
         text = ''.join(basetext)
 
         if node.responselist:
-            text += ' Prepend \"%s\" to your reply.' % (tnsid)
+            text += ' Type \"%s\" before your reply.' % (tnsid)
         
         return text
 
