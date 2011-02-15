@@ -95,7 +95,7 @@ class AppointmentFollowup(BaseTask):
 
         print 'patient missed their appointment'
 
-        alert_data = {'feedback': comment}
+        alert_data = {}
         if self.patient and session_id is not None:
             alert_data['url'] = '/taskmanager/patients/%d/history/#session_%d' % (self.patient.id, session_id)
         alert_data.update(args)

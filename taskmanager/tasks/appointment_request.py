@@ -66,9 +66,9 @@ class AppointmentRequest(BaseTask):
 
         # message sent when the user doesn't want reminders for whatever reason
         # FAISAL: this is currently disabled -- 'no', 'stop', and 'cancel' are all treated as full stops
-        m_cancel = sms.Message(
-            'Ok, you will not be sent any additional reminders for this appointment.', [],
-            label='remind')
+##        m_cancel = sms.Message(
+##            'Ok, you will not be sent any additional reminders for this appointment.', [],
+##            label='remind')
         
         # message sent when the user decides to stop
         m_stop = sms.Message(
