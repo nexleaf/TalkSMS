@@ -12,6 +12,7 @@ from taskmanager.models import *
 
 TARGET_SERVER = 'http://localhost:8001/taskmanager/exec'
 TARGET_TIMEOUT_SERVER = 'http://localhost:8001/taskmanager/timeout'
+QUIET_HOURS = {'start': 14, 'end': 8}
 
 class HTTPCommandBase(resource.Resource):
     isLeaf = False
@@ -125,11 +126,16 @@ def session_timeout_errored(response, sessionid):
 def check_schedule():
     # the server we should poke, defined at the top of this file
     global TARGET_SERVER
+    # and our quiet hours settings
+    global QUIET_HOURS
 
     # before we do anything, make sure it's not "quiet hours" (10pm to 9am)
     # if it is, do nothing and run this method later
-    if datetime.now().hour >= 14 or datetime.now().hour <= 9:
-        reactor.callLater(30, check_schedule)
+    # FIXME: move the quiet hours settings into a file, the interface, whatever...they shouldn't be hardcoded
+    if datetime.now().hour >= QUIET_HOURS['start'] or datetime.now().hour <= QUIET_HOURS['end']:
+        # check again in 30 minutes...this is kind of silly, but hey
+        print "*** Quiet hours are in effect (%d:00 to %d:00, currently: %d:00), calling again in 30 minutes..." % (QUIET_HOURS['start'], QUIET_HOURS['end'], datetime.now().hour)
+        reactor.callLater(60*30, check_schedule)
         return
     
     tasks = ScheduledTask.objects.get_due_tasks()
