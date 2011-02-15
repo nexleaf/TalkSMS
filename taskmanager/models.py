@@ -132,9 +132,9 @@ class TaskTemplate(models.Model):
 
 class ProcessManager(models.Manager):
     def get_pending_processes(self):
-        # a pending process has only incomplete scheduled tasks
+        # a pending process has only incomplete scheduled tasks and no completed sessions
         qset = super(ProcessManager, self).get_query_set()
-        return qset.exclude(scheduledtask__completed=True)
+        return qset.exclude(scheduledtask__completed=True).exclude(session__completed=True)
     
     def get_current_processes(self):
         # a current process has at least one incomplete session or scheduled task
