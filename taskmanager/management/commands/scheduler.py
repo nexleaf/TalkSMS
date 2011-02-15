@@ -125,6 +125,12 @@ def session_timeout_errored(response, sessionid):
 def check_schedule():
     # the server we should poke, defined at the top of this file
     global TARGET_SERVER
+
+    # before we do anything, make sure it's not "quiet hours" (10pm to 9am)
+    # if it is, do nothing and run this method later
+    if datetime.now().hour >= 14 or datetime.now().hour <= 9:
+        reactor.callLater(30, check_schedule)
+        return
     
     tasks = ScheduledTask.objects.get_due_tasks()
     
