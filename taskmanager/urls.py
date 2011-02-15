@@ -23,6 +23,7 @@ urlpatterns = patterns('',
     (r'^taskmanager/patients/(?P<patientid>\d+)/processes/?$', contexts_patients.processes),
     (r'^taskmanager/patients/(?P<patientid>\d+)/tasks/?$', contexts_patients.tasks),
     (r'^taskmanager/patients/(?P<patientid>\d+)/history/?$', contexts_patients.history),
+    (r'^taskmanager/patients/(?P<patientid>\d+)/messagelog/?$', contexts_patients.messagelog),
     (r'^taskmanager/patients/(?P<patientid>\d+)/calendar/?$', contexts_patients.calendar),
 
     # patients context: POST targets and an AJAX thing

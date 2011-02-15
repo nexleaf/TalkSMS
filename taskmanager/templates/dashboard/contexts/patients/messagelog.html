@@ -1,0 +1,98 @@
+{% extends "dashboard/contexts/patients/main.html" %}
+
+{% block section_styles %}
+.selected_item {
+	background: #FDFDAD;
+}
+
+.log_tbl td { padding: 5px; background: none; vertical-align: top; }
+.log_tbl .header td { font-weight: bold; }
+.log_tbl .day_header td { font-weight: bold; text-align: right; font-size: 16px; background: #ccc; }
+.lob_tbl .message td { vertical-align: top; }
+.log_tbl .alt td { background: #eee; }
+
+.log_tbl .message td.sender { font-weight: bold; text-align: right; }
+
+.log_tbl .incoming td.sender { color: #2F6CC1; }
+.log_tbl .outgoing td.sender { color: #BF4431; }
+{% endblock %}
+
+{% block section_scripts %}
+$(document).ready(function() {
+	// highlight the hash tag
+	function highlight(elemId){
+		var $elem = $(elemId).closest(".message");
+
+		if ($elem.length > 0) {
+			$elem.addClass("selected_item");
+		} else {
+			// display some kind of notification that the object doesn't exist
+			alert("ERROR: linked object no longer exists (the task may have been deleted)");
+		}
+	}
+
+	if (document.location.hash) {
+		highlight(document.location.hash);
+	}
+});
+{% endblock %}
+
+{% block section_content %}
+<table cellpadding="0" cellspacing="0" class="history_view_table" style="min-height: 300px; width: 100%; height: 100%; border: solid 1px gray;">
+	<tr>
+
+	<td id="history_column" valign="top" class="column" style="border-right: solid 1px #999;">
+		<div class="col_header">
+		Message Log
+		</div>
+
+		<div style="padding: 10px; position: relative;">
+			<div style="font-weight: bold; font-size: 18px; margin-bottom: 1em;">
+			Message log for {{ patient.first_name }} {{ patient.last_name }}
+			</div>
+
+			{% include "dashboard/bits/filter.html" %}
+
+			<div style="position: absolute; top: 60px; right: 10px;">
+				<a href="/taskmanager/patients/{{ patient.id }}/history">(view process history)</a>
+			</div>
+
+			<div style="border-top: solid 1px #ccc; padding-top: 5px;">
+				<table class="log_tbl" cellspacing="0" cellpadding="0">
+					<tr class="header">
+						<td>Direction</td>
+						<td>Time</td>
+						<td>Text</td>
+					</tr>
+
+					{% if 1 %}
+						{% regroup messages by day as day_list %}
+
+						{% for day in day_list reversed %}
+							<tr class="day_header"><td colspan="3">{{ day.grouper }}</td></tr>
+
+							{% for message in day.list %}
+							<tr class="message {% if message.direction == 'I' %}incoming{% else %}outgoing{% endif %} {% cycle 'normal' 'alt' %}">
+								<td class="sender">{% if message.direction == 'I' %}client:{% else %}system:{% endif %}</td>
+								<td style="width: 150px;">{{ message.date|date:"SHORT_DATETIME_FORMAT" }}</td>
+								<td><a id="{{ message.id }}" name="{{ message.id }}">{{ message.text }}</a></td>
+							</tr>
+							{% endfor %}
+						{% endfor %}
+					{% else %}
+						{% for message in messages %}
+						<tr class="message {% if message.direction == 'I' %}incoming{% else %}outgoing{% endif %} {% cycle 'normal' 'alt' %}">
+							<td class="sender">{% if message.direction == 'I' %}client:{% else %}system:{% endif %}</td>
+							<td style="width: 150px;">{{ message.date|date:"SHORT_DATETIME_FORMAT" }}</td>
+							<td>{{ message.text }}</td>
+						</tr>
+						{% endfor %}
+					{% endif %}
+				</table>
+			</div>
+		</div>
+	</td>
+
+	</tr>
+</table>
+{% endblock %}

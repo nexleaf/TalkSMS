@@ -107,6 +107,58 @@ def history(request, patientid):
 
 @csrf_protect
 @login_required
+def messagelog(request, patientid):
+    field_vars = {
+        'section': 'messagelog',
+        'patient': Patient.objects.get(pk=patientid)
+        }
+
+    # import the authoritative rapidsms message log
+    from rapidsms.contrib.messagelog.models import Message
+
+    # and grab the patient's identity from the Patient object
+    address = field_vars['patient'].address
+        
+    if 'from' in request.GET:
+        # parse at least the from field, and preferably the to field as well
+        p = pdt.Calendar()
+        from_clean = urllib.unquote(request.GET['from'].replace('+',' '))
+        from_time = p.parse(from_clean)
+        from_datetime = datetime.fromtimestamp(time.mktime(from_time[0]))
+
+        field_vars['from'] = from_clean
+        if 'custom' in request.GET: field_vars['custom'] = 'true'
+
+        if 'to' not in request.GET or request.GET['to'].strip() == "":
+            # use only the from field
+            field_vars['messages'] = Message.objects.filter(connection__identity=address,date__gte=from_datetime)
+        else:
+            # attempt to parse to, since it's here
+            to_clean = urllib.unquote(request.GET['to'].replace('+',' '))
+            to_time = p.parse(to_clean)
+
+            field_vars['to'] = to_clean
+            
+            if (to_time[1] > 0):
+                # it was parseable, make the range reflect this
+                to_datetime = datetime.fromtimestamp(time.mktime(to_time[0]))
+                field_vars['messages'] = Message.objects.filter(connection__identity=address,date__gte=from_datetime,date__lte=to_datetime)
+            else:
+                # it was unparseable, just use from
+                field_vars['messages'] = Message.objects.filter(connection__identity=address,date__gte=from_datetime)
+    else:
+        field_vars['messages'] = Message.objects.filter(connection__identity=address)
+
+    # order by add date descending after we have a list
+    # django lazy query evaluation means that nothing is actually happening here
+    # the ordering will occur when the page iterates over 'processes'
+    field_vars['messages'] = field_vars['messages'].extra(select={'day': """strftime('%%m/%%d/%%Y', date)"""}).order_by('date')
+    
+    merge_contextuals(field_vars, request, patientid)
+    return render_to_response('dashboard/contexts/patients/messagelog.html', field_vars, context_instance=RequestContext(request))
+
+@csrf_protect
+@login_required
 def calendar(request, patientid):
     field_vars = {
         'section': 'calendar',
