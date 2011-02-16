@@ -12,7 +12,18 @@ from taskmanager.models import *
 
 TARGET_SERVER = 'http://localhost:8001/taskmanager/exec'
 TARGET_TIMEOUT_SERVER = 'http://localhost:8001/taskmanager/timeout'
-QUIET_HOURS = {'start': 14, 'end': 8}
+QUIET_HOURS = {'start': 22, 'end': 8}
+
+# used by check_schedule() to determine if it can send tasks
+# and by showJSONStatus() to let the interface know we're sleeping
+def isQuietHours():
+    global QUIET_HOURS
+    return datetime.now().hour >= QUIET_HOURS['start'] or datetime.now().hour <= QUIET_HOURS['end']
+
+
+# =========================================================================================
+# === HTTP interface definition
+# =========================================================================================
 
 class HTTPCommandBase(resource.Resource):
     isLeaf = False
@@ -32,7 +43,30 @@ class HTTPCommandBase(resource.Resource):
 class HTTPStatusCommand(resource.Resource):
     def __init__(self):
         resource.Resource.__init__(self)
+        
+    def showJSONStatus(self, all_tasks=True):
+        if all_tasks:
+            tasks = ScheduledTask.objects.all()
+        else:
+            tasks = ScheduledTask.objects.get_pending_tasks()
 
+        # apply extra filtering and sorting, regardless of the source
+        tasks = tasks.filter(completed=False,active=True).order_by('-schedule_date')
+
+        # stores the list of tasks that we'll be sending to the caller
+        tasklist = []
+
+        for task in tasks:
+            tasklist.append({
+                'id': task.id,
+                'target': task.task.name,
+                'arguments': json.loads(task.arguments),
+                'schedule_date': task.schedule_date.ctime(),
+                'completed': task.completed
+                })
+
+        return json.dumps({'status': ('running', 'sleeping')[isQuietHours()], 'tasks': tasklist})
+    
     def showStatus(self, all_tasks=True):
         out = "<table>"
         out += "<tr class='header'><td>ID</td><td>Target</td><td>Arguments</td><td>Schedule Date</td><td>Completed</td></tr>"
@@ -58,8 +92,12 @@ class HTTPStatusCommand(resource.Resource):
     
     isLeaf = True
     def render_GET(self, request):
-        print "[GET] /status"
-        return self.showStatus('alltasks' in request.args)
+        if 'html' in request.args:
+            print "[GET] /status"
+            return self.showStatus('alltasks' in request.args)
+        else:
+            print "[GET] /status (json)"
+            return self.showJSONStatus('alltasks' in request.args)
     
 class HTTPScheduleCommand(resource.Resource):
     def __init__(self):
@@ -99,6 +137,11 @@ class HTTPScheduleCommand(resource.Resource):
             
         return "<html>this is correct</html>"
 
+
+# =========================================================================================
+# === task database access methods
+# =========================================================================================
+
 def task_finished(response, sched_taskid):
     t = ScheduledTask.objects.get(pk=sched_taskid)
     t.completed = True
@@ -123,6 +166,11 @@ def session_timeout_errored(response, sessionid):
     print "- errored out on timing out %s (%d), reason: %s" % (t.task.name, sessionid, response.getErrorMessage())
     response.printTraceback()
 
+
+# =========================================================================================
+# === actual scheduling methods
+# =========================================================================================
+
 def check_schedule():
     # the server we should poke, defined at the top of this file
     global TARGET_SERVER
@@ -132,7 +180,7 @@ def check_schedule():
     # before we do anything, make sure it's not "quiet hours" (10pm to 9am)
     # if it is, do nothing and run this method later
     # FIXME: move the quiet hours settings into a file, the interface, whatever...they shouldn't be hardcoded
-    if datetime.now().hour >= QUIET_HOURS['start'] or datetime.now().hour <= QUIET_HOURS['end']:
+    if isQuietHours():
         # check again in 30 minutes...this is kind of silly, but hey
         print "*** Quiet hours are in effect (%d:00 to %d:00, currently: %d:00), calling again in 30 minutes..." % (QUIET_HOURS['start'], QUIET_HOURS['end'], datetime.now().hour)
         reactor.callLater(60*30, check_schedule)
@@ -208,6 +256,11 @@ def check_timeouts():
         
     # run again in a bit
     reactor.callLater(30, check_timeouts)
+
+
+# =========================================================================================
+# === twisted entrypoint and django command definitions
+# =========================================================================================
 
 def main(port=8080):
     # construct the resource tree
