@@ -37,9 +37,37 @@ class App(rapidsms.apps.base.AppBase):
         # the below is a list comprehension that produces a list, then is join()'d back into a string
         # we strip out all characters with an ord > 128
         message.text = "".join([c for c in message.text if ord(c) <= 128])
-                                
-        response = self.tm.recv(message)
 
+        # FAISAL: surrounding the whole recieve/response process in a try
+        # so that we can post an alert to the administrator
+        try:
+            response = self.tm.recv(message)
+        except:
+            # we post two alerts here:
+            # 1) a techinical one w/the exception info
+            # 2) an informational one for the clinicians
+
+            # attempt to look up the patient
+            # just set patient to none if they can't be found
+            try:
+                patient = Patient.objects.get(address=message.connection.identity)
+            except DoesNotExist:
+                patient = None
+            
+            # extract exception info
+            cla, exc, trbk = sys.exc_info()
+            excName = cla.__name__
+
+            # post an exception alert targeting the task manager service
+            alert_data_A = {'module': "n/a", 'name': excName, 'traceback': traceback.format_exc()}
+            Alert.objects.add_alert("Task Exception", arguments=alert_data_A, patient=patient)
+
+            alert_data_B = {'msgtext': message.text}
+            Alert.objects.add_alert("Message not Understood", arguments=alert_data_B, patient=patient)
+            
+            # continue with the exception so we can see it on the console
+            raise
+        
         if response is None:
             # if response is None, a user-initiated task has been scheduled to start immediately
             # OR the particular statemachine has finished, so there is no repsonse to send back.
