@@ -51,18 +51,19 @@ class AppointmentRequest(BaseTask):
         # idealy this'd be directly before each message, but most of these responses are repeated in this case
         # r_cancel = sms.Response('cancel', match_regex=r'cancel|no', label='cancel', callback=self.appointment_cancelled_alert)
         r_stop = sms.Response('stop', match_regex=r'cancel|no|stop', label='stop', callback=self.appointment_stopped_alert)
-        r_need_date_and_time = sms.Response('asdf', match_callback=AppointmentRequest.match_non_date_and_time, label='non_datetime')
         r_stalling = sms.Response('ok', match_regex=r'ok', label='stalling')
+        r_date_past = sms.Response('yesterday at 3pm', match_callback=AppointmentRequest.match_past_date, label='datepast')
         r_valid_appt = sms.Response('today at 3pm', match_callback=AppointmentRequest.match_date_and_time, label='datetime', callback=self.schedule_reminders)
         
         # lists of responses that'll be used for every node that takes the same input as the initial
-        initial_responses = [r_stop, r_stalling, r_need_date_and_time, r_valid_appt]
+        initial_responses = [r_stop, r_stalling, r_date_past, r_valid_appt]
 
         # message sent asking the user to schedule an appt. and to text us back the date and time
         m_initial = sms.Message(
             render_to_string('tasks/appts/request.html', {'patient': self.patient, 'args': self.args}),
             initial_responses,
-            label='remind', retries=AppointmentRequest.RETRY_COUNT, timeout=AppointmentRequest.RETRY_TIMEOUT)
+            label='remind', retries=AppointmentRequest.RETRY_COUNT, timeout=AppointmentRequest.RETRY_TIMEOUT,
+            no_match_callback=self.unparseable_response)
 
         # message sent when the user doesn't want reminders for whatever reason
         # FAISAL: this is currently disabled -- 'no', 'stop', and 'cancel' are all treated as full stops
@@ -75,19 +76,20 @@ class AppointmentRequest(BaseTask):
             'Ok, stopping all messages now. Thank you for participating.', [],
             label='remind')
 
-        # message sent if the user doesn't include both date and time
-        # this replicates the expected responses of the initial node because it basically is the initial node
-        m_need_date_and_time = sms.Message(
-            'Please respond with both the date and the time of the appointment you scheduled (e.g. 1/15/2011 8:30pm).',
-            initial_responses,
-            label='remind', retries=AppointmentRequest.RETRY_COUNT, timeout=AppointmentRequest.RETRY_TIMEOUT)
-
         # message sent when the user delays us by saying 'ok'; we prompt them for more info when they're ready
         # this replicates the expected responses of the initial node because it basically is the initial node
         m_stalling = sms.Message(
             'Please respond with both the date and the time of the appointment when you\'ve scheduled it, or \'stop\' if you don\'t want to schedule one now.',
             initial_responses,
             label='remind', retries=AppointmentRequest.RETRY_COUNT, timeout=AppointmentRequest.RETRY_TIMEOUT)
+
+        # message sent when the user enters a date that's already past; we tell them what they entered and reprompt them
+        # this replicates the expected responses of the initial node because it basically is the initial node
+        m_date_past = sms.Message(
+            "returned by custom msg callback",
+            initial_responses,
+            label='remind', custom_message_callback=self.date_past_callback,
+            retries=AppointmentRequest.RETRY_COUNT, timeout=AppointmentRequest.RETRY_TIMEOUT)
         
         # FAISAL: left to demonstrate no match callback parameter
         # m1 = sms.Message(q1, [r1,r2], label='m1', no_match_callback=self.no_match_test)
@@ -100,14 +102,14 @@ class AppointmentRequest(BaseTask):
 
         # lists of transitions that'll be used for every node that takes the same input as the initial
         # this needs to match up pairwise with initial_responses :\
-        initial_transitions = [m_stop, m_stalling, m_need_date_and_time, m_valid_appt]
+        initial_transitions = [m_stop, m_stalling, m_date_past, m_valid_appt]
 
         # define a super class with .restore() in it. below, user will call createGraph(), createInteraction()
         # which remember handles to graph and interaction. when .restore() is called it just updates the node we're at searching with the label.
         self.graph = { m_initial: initial_transitions,
                        m_stop: [],
-                       m_need_date_and_time: initial_transitions,
                        m_stalling: initial_transitions,
+                       m_date_past: initial_transitions,
                        m_valid_appt: []
                        }
 
@@ -121,6 +123,17 @@ class AppointmentRequest(BaseTask):
         t = datetime.now()
         return "Stopping messages at %s. Thank you for participating" % (t)
 
+    def date_past_callback(self, message_obj, received_msg):
+        # parse out the date so we can tell it to them in the message
+        # this is guaranteed to work since it's gone through validation already
+        pdt = parsedatetime.Calendar()
+        (res, retval) = pdt.parse(received_msg)
+        t = datetime(*res[0:7])
+        appttime = t.strftime("%m/%d/%Y %I:%M%p")
+
+        # return a message that their date was in the past and to try again
+        return "You must enter a future date (you entered %s). Please try again, or text 'no' to cancel." % (appttime)
+    
     def valid_appt_msg_callback(self, message_obj, received_msg):
         # parse out the date so we can tell it to them in the message
         # this is guaranteed to work since it's gone through validation already
@@ -212,6 +225,17 @@ class AppointmentRequest(BaseTask):
             return res
         
     @staticmethod
+    def match_past_date(msgtxt):
+        pdt = parsedatetime.Calendar()
+        (res, retcode) = pdt.parse(msgtxt)
+        if retcode != 3:
+            return False
+        else:
+            # convert to date and return true if it's in the past
+            t = datetime(*res[0:7])
+            return t < datetime.now()
+        
+    @staticmethod
     def match_date_and_time(msgtxt):
         pdt = parsedatetime.Calendar()
         (res, retcode) = pdt.parse(msgtxt)
@@ -247,7 +271,14 @@ class AppointmentRequest(BaseTask):
         alert_args.update(args)
         Alert.objects.add_alert("Messages Stopped", arguments=alert_args, patient=self.patient)
 
-
+    def unparseable_response(self, node, response, session_id):
+        alert_args = {'msgtext': response}
+        if self.patient and session_id is not None:
+            alert_args['url'] = '/taskmanager/patients/%d/history/#session_%d' % (self.patient.id, session_id)
+        alert_args.update(self.args)
+        Alert.objects.add_alert("Message not Understood", arguments=alert_args, patient=self.patient)
+        
+        return "Please respond with both the date and the time of the appointment you scheduled (e.g. 1/15/2011 8:30pm) or 'no' to cancel."
 
     def schedule_reminders(self, *args, **kwargs):
         ndatetime = kwargs['response']

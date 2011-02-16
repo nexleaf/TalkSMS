@@ -38,7 +38,8 @@ class AppointmentFollowup(BaseTask):
         m1 = sms.Message(
             render_to_string('tasks/appts/followup.html', {'patient': self.patient, 'args': self.args}),
             [r_feedback, r_missed],
-            label='resp', retries=AppointmentFollowup.RETRY_COUNT, timeout=AppointmentFollowup.RETRY_TIMEOUT)
+            label='resp', retries=AppointmentFollowup.RETRY_COUNT, timeout=AppointmentFollowup.RETRY_TIMEOUT,
+            no_match_callback=self.unparseable_response)
 
         # message sent when user provides feedback in the form 'feedback <my message here>'
         m_thanks = sms.Message('Thank you for your feedback.', [], label='thanks')
@@ -99,7 +100,17 @@ class AppointmentFollowup(BaseTask):
         if self.patient and session_id is not None:
             alert_data['url'] = '/taskmanager/patients/%d/history/#session_%d' % (self.patient.id, session_id)
         alert_data.update(args)
+        alert_data.update(self.args)
         Alert.objects.add_alert("Appointment Missed", arguments=alert_data, patient=self.patient)
+
+    def unparseable_response(self, node, response, session_id):
+        alert_args = {'msgtext': response}
+        if self.patient and session_id is not None:
+            alert_args['url'] = '/taskmanager/patients/%d/history/#session_%d' % (self.patient.id, session_id)
+        alert_args.update(self.args)
+        Alert.objects.add_alert("Message not Understood", arguments=alert_args, patient=self.patient)
+        
+        return "Please respond with either 'feedback' followed by your message or 'missed'."
     
     # FAISAL: not currently used
     def reschedule_reminder(self, *args, **kwargs):

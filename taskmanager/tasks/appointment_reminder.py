@@ -46,7 +46,8 @@ class AppointmentReminder(BaseTask):
         m1 = sms.Message(
             q1,
             [r1, r2, r_stop],
-            label='appt', retries=AppointmentReminder.RETRY_COUNT, timeout=AppointmentReminder.RETRY_TIMEOUT)
+            label='appt', retries=AppointmentReminder.RETRY_COUNT, timeout=AppointmentReminder.RETRY_TIMEOUT,
+            no_match_callback=self.unparseable_response)
 
         # user ok'd appointment
         m2 = sms.Message(
@@ -100,6 +101,18 @@ class AppointmentReminder(BaseTask):
         # we could make them active=false, but they'll still show up as scheduled in the interface
         ScheduledTask.objects.filter(process=session.process).delete()
 
+    def unparseable_response(self, node, response, session_id):
+        alert_args = {'msgtext': response}
+        if self.patient and session_id is not None:
+            alert_args['url'] = '/taskmanager/patients/%d/history/#session_%d' % (self.patient.id, session_id)
+        alert_args.update(self.args)
+        Alert.objects.add_alert("Message not Understood", arguments=alert_args, patient=self.patient)
+
+        if 'nocancel' in self.args:
+            return "Message not understood, please respond with 'ok'."
+        else:
+            return "Message not understood, please respond with either 'ok' or 'cancel'."
+    
     def save(self):
         print 'in %s.save(): ' % (self.__class__.__name__)
         # save whatever you like in the parameter blob
