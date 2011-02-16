@@ -618,7 +618,7 @@ class TaskManager(object):
             response = None
         else:
             # fall-through response string
-            response = 'Response not understood. Please prepend the message id number to your response.'
+            response = 'Response not understood. Please type the message identifier before your response.'
             
             # strip off msgid and text from the repsonse
 
@@ -687,7 +687,7 @@ class TaskManager(object):
                         if optional_response is not None:
                             response = optional_response
                         else:
-                            response = TaskManager.build_send_str(sm.node, sm.tnsid)
+                            response = TaskManager.build_send_str(sm.node, sm.tnsid, received_msg=rtext)
                         self.log.debug('and response = %s' % (response))
                         self.app.log_message(sm.session_id, response, True)
                         
