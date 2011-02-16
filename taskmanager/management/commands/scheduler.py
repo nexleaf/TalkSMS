@@ -18,7 +18,7 @@ QUIET_HOURS = {'start': 22, 'end': 8}
 # and by showJSONStatus() to let the interface know we're sleeping
 def isQuietHours():
     global QUIET_HOURS
-    return datetime.now().hour >= QUIET_HOURS['start'] or datetime.now().hour <= QUIET_HOURS['end']
+    return (not QUIET_HOURS is None) and (datetime.now().hour >= QUIET_HOURS['start'] or datetime.now().hour <= QUIET_HOURS['end'])
 
 
 # =========================================================================================
@@ -262,7 +262,13 @@ def check_timeouts():
 # === twisted entrypoint and django command definitions
 # =========================================================================================
 
-def main(port=8080):
+def main(port=8080,noquiet=None):
+    # check params for quiet hours disabling setting
+    if noquiet:
+        global QUIET_HOURS
+        QUIET_HOURS = None
+        print "*** quiet hours have been disabled for this run"
+        
     # construct the resource tree
     root = HTTPCommandBase()
     root.putChild('status', HTTPStatusCommand())
@@ -281,7 +287,7 @@ if __name__ == '__main__':
 
 # to allow this to be executed as a django command...
 class Command(BaseCommand):
-    args = '<port>'
+    args = '<port> <noquiet>'
     help = 'Runs the scheduler via twisted (weird, i know)'
 
     def handle(self, *args, **options):
