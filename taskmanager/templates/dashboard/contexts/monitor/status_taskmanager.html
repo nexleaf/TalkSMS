@@ -98,10 +98,14 @@ $(document).ready(function() {
 {% endblock %}
 
 {% block status_content %}
-	<div id="taskmanager_dispatch">
+	<div style="position: relative;">
+		<div id="taskmanager_dispatch">
 
+		</div>
+
+		<div style="position: absolute; top: 5px; right: 5px; width: 150px; text-align: right;">
+			<img id="spinner_img" src="/static/taskmanager/images/ajax-loader-arrows.gif" style="vertical-align: middle; display: none;" />
+			<input type="button" id="refresh_dispatch_btn" value="refresh dispatch" style="width: 120px;" />
+		</div>
 	</div>
-
-	<input type="button" id="refresh_dispatch_btn" value="refresh dispatch" />
-	<img id="spinner_img" src="/static/taskmanager/images/ajax-loader-arrows.gif" style="vertical-align: middle; display: none;" />
 {% endblock %}

@@ -28,8 +28,8 @@ h1 { margin-left: 20px; font-size: 32px; }
 	font-weight: bold; color: #555; width: 60px; padding: 3px; text-align: center;
 	border-radius: 4px; -moz-border-radius: 4px; -webkit-border-radius: 4px;
 }
-.pending { background-color: #E3E383; }
-.pending_light { background-color: #F2F2C6; }
+.pending, .sleeping { background-color: #E3E383; }
+.pending_light, .sleeping_light { background-color: #F2F2C6; }
 .due { background-color: #E3B5B5; }
 .due_light { background-color: #F2DCDC; }
 .running { background-color: #B5C9E3; }
