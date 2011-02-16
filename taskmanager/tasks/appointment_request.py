@@ -306,7 +306,7 @@ class AppointmentRequest(BaseTask):
         self.args['appt_date'] = appttime
         print 'self.args: %s' % (self.args)
         
-        testing = True
+        testing = False
 
         if testing:
             # easier to track msgs
