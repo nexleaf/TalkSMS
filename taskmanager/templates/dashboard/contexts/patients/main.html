@@ -64,7 +64,7 @@ $(document).ready(function() {
 			-->
 			{% for patient in patients %}
 			<div style="position: relative;">
-				<a class="{% if patient.id|lower == selected_patientid|lower %}selected{% endif %} choosable {% if patient.halted %}halted{% endif %}" href="/taskmanager/patients/{{ patient.id }}/{{ section|default:'processes' }}">
+				<a class="{% if patient.id|lower == selected_patientid|lower %}selected{% endif %} choosable {% if patient.halted %}halted{% endif %}" href="/taskmanager/patients/{{ patient.id }}/{{ section|default:'processes' }}{{ page_args }}">
 					{{ patient.first_name }} {{ patient.last_name }}
 					<div class="address_box">{{ patient.address }}</div>
 				</a>

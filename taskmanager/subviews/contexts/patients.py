@@ -22,12 +22,13 @@ import json, urllib
 def merge_contextuals(context, request, patientid):
     # update our context if it isn't already
     request.session['context'] = 'patients'
-    
+
     context.update({
         'context': 'patients',
         'selected_patientid': patientid,
         'current_page': request.path,
-        'patients': Patient.objects.all()
+        'patients': Patient.objects.all(),
+        'page_args': ('', '?' + request.META['QUERY_STRING'])[len(request.META['QUERY_STRING'].strip()) > 0]
         })
 
 @csrf_protect
