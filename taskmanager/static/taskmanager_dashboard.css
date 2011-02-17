@@ -86,6 +86,7 @@ td.column  { height:     352px; }
 #users_column { width: 100%; }
 #users_column .col_header { background: #ccc url('/static/taskmanager/icons/Users.png') no-repeat 5px center; padding-left: 45px; }
 #users_column .choosable { background-image: url('/static/taskmanager/icons/User.png'); background-repeat: no-repeat; background-position: 5px center; padding-left: 45px; }
+#users_column .halted { background-image: url('/static/taskmanager/icons/User%20Lock.png'); background-repeat: no-repeat; background-position: 5px center; padding-left: 45px; }
 
 .history_view_table #history_column { width: 100%; }
 .history_view_table #history_column .col_header { background: #ccc url('/static/taskmanager/icons/Discussion.png') no-repeat 5px center; padding-left: 45px; }
