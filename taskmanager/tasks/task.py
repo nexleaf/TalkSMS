@@ -8,17 +8,15 @@ class BaseTask(object):
         self.interaction = interaction
         self.tasknamespace_override = tasknamespace_override
 
-    def setinteraction(self, graph, initialnode, label):
+    def setinteraction(self, graph, initialnode, label=''):
         self.interaction = sms.Interaction(graph=graph, initialnode=initialnode, label=label)
 
     
     @staticmethod
-    def get_user_init_string():
-        return None
+    def match_user_init(message_text):
+        # Return whether it matches, the task name, the task sub type, and arguments
+        return False, None, None, None
 
-    @staticmethod
-    def determine_task_type(message):
-        return None
 
 
         

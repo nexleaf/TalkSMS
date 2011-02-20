@@ -227,3 +227,10 @@ if 'test' in sys.argv:
             tempfile.gettempdir(),
             "%s.rapidsms.test.sqlite3" % db_name)
 
+
+###############################
+# TalkSMS Settings
+###############################
+
+USE_QUIET_HOURS=True
+

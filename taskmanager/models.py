@@ -12,6 +12,7 @@ from datetime import datetime
 from pytz import timezone
 import os, json
 
+
 # =================================================================
 # ==== Users
 # =================================================================
@@ -113,8 +114,8 @@ class Task(models.Model):
     schedulable = models.BooleanField(blank=True,default=False)
 
     # maintains the templates used by this task
-    templates = models.ManyToManyField(dbtemplates.models.Template)
-
+    templates = models.ManyToManyField(dbtemplates.models.Template, blank=True, null=True)
+    
     def __unicode__(self):
         return "%s (%s.%s)" % (self.name, self.module, self.className)
 

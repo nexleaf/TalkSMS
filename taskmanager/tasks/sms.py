@@ -3,7 +3,7 @@
 import sys, json, re, traceback, string
 from collections import deque
 import itertools
-from taskmanager.models import Alert
+from taskmanager.models import *
 
 class Response(object):
 

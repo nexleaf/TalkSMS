@@ -9,6 +9,7 @@ import tasks.appointment_request
 import tasks.appointment_reminder
 import tasks.appointment_followup
 import tasks.taskscheduler
+import tasks.mediabus
 from taskmanager.models import *
 
 class App(rapidsms.apps.base.AppBase):
@@ -51,7 +52,7 @@ class App(rapidsms.apps.base.AppBase):
             # just set patient to none if they can't be found
             try:
                 patient = Patient.objects.get(address=message.connection.identity)
-            except DoesNotExist:
+            except Exception as e: # removed DoesNotExist since can not find where to import from
                 patient = None
             
             # extract exception info
@@ -163,44 +164,40 @@ class App(rapidsms.apps.base.AppBase):
 
 
     def knownuser(self, message):
-        return Patient.objects.filter(address=message.connection.identity)
+        res = None
+        try:
+            res = Patient.objects.filter(address=message.connection.identity)
+            return res
+        except:
+            return False
 
-
+    
     def createdbuserandtask(self, message):
-        print 'in app.createuserandtask:'
+        self.debug('in app.createuserandtask:')
         #
         # TODO: move into task manager... it handles tasks, so this goes there
         #
-        firstword = str(message.text).lower().split(None, 1)[0]        
         alltasks = Task.objects.all()
-        print alltasks
+        self.debug(str(alltasks))
 
+        matches = False
         taskname, tasksubtype, arguments = None,None,None
         
         for t in alltasks:
             # get user initiated task keyword
-            fn = "%s.%s.get_user_init_string()" % (t.module, t.className)
+            fn = "%s.%s.match_user_init(message)" % (t.module, t.className)
             #print fn
-            keyword = eval(fn)
-            print 'keyword: %s; type(keyword): %s' % (keyword, type(keyword))
-            print 'firstword: %s; type(firstword): %s' % (firstword, type(firstword))
+            self.debug("Trying " + fn)
+            matches, taskname, tasksubtype, arguments = eval(fn)
 
-            if firstword.lower() == keyword:
-                fn = "%s.%s.determine_task_type(message)" % (t.module, t.className)
-                print 'evaluating ttype'
-                ttype = eval(fn)
-                if ttype:
-                    taskname, tasksubtype, arguments = ttype
-                    break
-
-        if not all( (taskname, tasksubtype, arguments) ):
-            # couldn't find a matching task
+        self.debug("Res is " + str(matches))
+        if not matches:
             return False
         
         # define patient
         #     is the user in the db?
         knownuser = self.knownuser(message)
-        print 'knownuser: %s' % knownuser
+        self.debug('knownuser: %s' % knownuser)
         #     if not, add anonymous one to db.  
         if not knownuser:
             patient = Patient(address=message.connection.identity, first_name='Anonymous', last_name='User')
@@ -228,7 +225,7 @@ class App(rapidsms.apps.base.AppBase):
              'args': arguments,
              'schedule_date': datetime.now() }
         tasks.taskscheduler.schedule(d)
-
+        
         # created and scheduled a task. message was handled, return True to handler.
         return True
         

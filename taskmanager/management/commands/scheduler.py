@@ -10,6 +10,8 @@ from datetime import datetime
 from django.core.management.base import BaseCommand, CommandError
 from taskmanager.models import *
 
+from django.conf import settings
+
 TARGET_SERVER = 'http://localhost:8001/taskmanager/exec'
 TARGET_TIMEOUT_SERVER = 'http://localhost:8001/taskmanager/timeout'
 QUIET_HOURS = {'start': 22, 'end': 8}
@@ -18,7 +20,7 @@ QUIET_HOURS = {'start': 22, 'end': 8}
 # and by showJSONStatus() to let the interface know we're sleeping
 def isQuietHours():
     global QUIET_HOURS
-    return (not QUIET_HOURS is None) and (datetime.now().hour >= QUIET_HOURS['start'] or datetime.now().hour <= QUIET_HOURS['end'])
+    return (not QUIET_HOURS is None) and (datetime.now().hour >= QUIET_HOURS['start'] or datetime.now().hour <= QUIET_HOURS['end']) and settings.USE_QUIET_HOURS
 
 
 # =========================================================================================

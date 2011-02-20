@@ -172,16 +172,13 @@ class AppointmentRequest(BaseTask):
 
     # uits: user can send in this string to immediately schedule this task
     @staticmethod
-    def get_user_init_string():
-        return "apptreq"
+    def match_user_init(message):
+        firstword = str(message.text).lower().split(None, 1)[0]        
 
-    # uits: these strings narrow down the request to the type of task needed.
-    @classmethod
-    def determine_task_type(cls, message):
-        # parses message and tries to figure out the sub task type
-        # if message has a keyword, determine taskname, tasktype, args and return them
-        
-        print 'in appointment request.determin_task_type():'
+        if firstword != "apptreq":
+            return False, None, None, None
+
+        print 'in appointment request.match_user_init()'
 
         keywords = ('dexa', 'provider', 'echo', 'ekg', 'blood')
         msg = str(message.text).lower()
@@ -201,10 +198,10 @@ class AppointmentRequest(BaseTask):
                         arguments['requires_fasting'] = 0
                         
                 print 't.name: %s; tt.name: %s; arguments: %s' % (t.name, tt.name, arguments)
-                return (t.name, tt.name, arguments)
+                return (True, t.name, tt.name, arguments)
 
         # no match found
-        return None
+        return False, None, None, None
 
     @staticmethod
     def match_date_or_time(msgtxt):

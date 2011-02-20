@@ -32,7 +32,7 @@ def prompt_login(request):
                 if 'next' in request.POST:
                     return HttpResponseRedirect(request.POST['next'])
                 else:
-                    return HttpResponseRedirect('/taskmanager/')
+                    return HttpResponseRedirect(reverse('dashboard.default'))
             else:
                 # Return a 'disabled account' error message
                 context['error'] = 'this account has been disabled'
@@ -49,4 +49,4 @@ def prompt_login(request):
 def perform_logout(request):
     logout(request)
     # Redirect to a success page.
-    return HttpResponseRedirect('/taskmanager/login')
+    return HttpResponseRedirect(reverse(prompt_login))
