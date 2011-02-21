@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 import json, re
 
 from taskmanager.models import *
+from models import *
 import taskscheduler
 
 from task import BaseTask
@@ -42,9 +43,16 @@ class mediabus(BaseTask):
             raise Exception('No message in args')
 
         message = args['message']
-        firstword = str(message).lower().split(None, 1)[0]
+        firstword = int( str(message).lower().split(None, 1)[0] )
+        textrest = ""
+        try:
+            textrest = str(message).split(None, 1)[1]
+        except:
+            textrest = ""
 
         # Store to DB
+        mbrl = MediaBusRawLog(identity=user.identity, message_number=firstword, message_text=textrest)
+        mbrl.save()
 
         # Thank you message
         m_thank = sms.Message("Thank you for your input! Gracias por su participacion!", [], label='thankyouresponse', retries=0, timeout=0)

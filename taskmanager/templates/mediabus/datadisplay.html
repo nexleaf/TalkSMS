@@ -1,0 +1,58 @@
+{% extends "plain.html" %}
+
+{% block header %}MediaBus DataDisplay{% endblock %}
+{% block title %}MediaBus DataDisplay{% endblock %}
+
+
+{% block styles %}
+#data_div {
+        float: left; width: 1000px;
+        background-color: #eee; padding: 10px; padding-left: 30px;
+        -moz-border-radius: 10px;
+        -webkit-border-radius: 10px;
+}
+{% endblock %}
+
+
+{% block content %}
+
+
+<div id="data_div">
+
+<a href="/mediabus/mediabusdata/unmatched/">See unmatched messages</a>
+<br>
+
+{% if msgout.has_previous %}
+<a href="?page={{ msgout.previous_page_number }}">&lt;--</a>
+{% endif %}
+{{ msgout.number }} of {{ msgout.paginator.num_pages }}
+{% if msgout.has_next %}
+<a href="?page={{ msgout.next_page_number }}">--&gt;</a>
+{% endif %}
+
+<table cellspacing=3 cellpadding=3>
+
+{% for mm in msgout.object_list %}
+<tr>
+<td>{{ mm.identity }}</td>
+<td>{{ mm.message_datetime }}</td>
+<td>{{ mm.message_number }}</td>
+<td>{{ mm.message_text }}</td>
+</tr>
+{% endfor %}
+
+</table>
+
+{% if msgout.has_previous %}
+<a href="?page={{ msgout.previous_page_number }}">&lt;--</a>
+{% endif %}
+{{ msgout.number }} of {{ msgout.paginator.num_pages }}
+{% if msgout.has_next %}
+<a href="?page={{ msgout.next_page_number }}">--&gt;</a>
+{% endif %}
+
+</div>
+
+
+{% endblock %}
+
