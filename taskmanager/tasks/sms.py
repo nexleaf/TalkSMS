@@ -611,11 +611,14 @@ class TaskManager(object):
         self.log.debug('in TaskManager.recv(): ')
 
         response = 'Command not understood.'
+        message_matched = False
         
         # Always check for UIT
         # user-initiated-task? see if the message contains a keyword associated with a task
         if self.app.createdbuserandtask(rmessage):
+            self.scrub_statemachines()
             response = None
+            message_matched = True
         else:
             # fall-through response string
             response = 'Response not understood. Please type the message identifier before your response.'
@@ -659,6 +662,7 @@ class TaskManager(object):
 
                 if (sm.user.identity == rmessage.connection.identity) and (sm.tnsid == rtnsid) :
                     self.log.debug('found statemachine: %s', sm)
+                    message_matched = True
 
                     # support cens gui
                     # log received msg
@@ -696,6 +700,11 @@ class TaskManager(object):
 
                     # already found and processed, so leave
                     break
+        
+        # Too hacky. Need to redo entire function to make this better. Probably should
+        # return extra boolean along with message instead?
+        if not message_matched:
+            raise NotImplementedError("Can not match message to any task")
         
         return response
                 

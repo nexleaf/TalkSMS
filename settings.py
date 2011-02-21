@@ -232,5 +232,12 @@ if 'test' in sys.argv:
 # TalkSMS Settings
 ###############################
 
+# Tell's the scheduler to observer the set QUIET HOURS
+# TODO: add the actual hours here as settings!
 USE_QUIET_HOURS=True
+
+# Determines whether a response is sent when no message matches anything
+ALLMATCH_FAIL=True
+ALLMATCH_FAIL_RESPONSE="I did not understand your message"
+
 

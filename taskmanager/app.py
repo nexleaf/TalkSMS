@@ -12,6 +12,9 @@ import tasks.taskscheduler
 import tasks.mediabus
 from taskmanager.models import *
 
+from django.conf import settings
+
+
 class App(rapidsms.apps.base.AppBase):
 
     def start(self):
@@ -43,7 +46,31 @@ class App(rapidsms.apps.base.AppBase):
         # so that we can post an alert to the administrator
         try:
             response = self.tm.recv(message)
-        except:
+        except NotImplementedError as e:
+
+            # This is raised (see last few lines of tm.recv()) when
+            # there is no task to match the message.  The settings
+            # file specifys what, if any message to send back.  All
+            # bad messages are stored in the DB
+
+            umm = UnmatchedMessages(identity = message.connection.identity,
+                                    message_datetime = datetime.now(),
+                                    message_text = message.text)
+            umm.save()
+
+            # if setting is true, we send the response as specified by the settings file
+            if settings.ALLMATCH_FAIL:
+                message.respond(settings.ALLMATCH_FAIL_RESPONSE)
+
+            self.debug("Warning, no matches found!!!! " + str(e) )
+
+            # We return true so that rapidsms does not send its own 'I did not understand' response
+            return True
+            
+        except Exception as e:
+            # Gets a ValueError when we find the right task but the task does not
+            # understand the message. The exception should hold the message to send back
+            
             # we post two alerts here:
             # 1) a techinical one w/the exception info
             # 2) an informational one for the clinicians
@@ -65,9 +92,18 @@ class App(rapidsms.apps.base.AppBase):
 
             alert_data_B = {'msgtext': message.text}
             Alert.objects.add_alert("Message not Understood", arguments=alert_data_B, patient=patient)
+
+            #
+            # To Faisal: Have this do a message.respond() if the
+            # exception was a valueerror and use the exception
+            # contents? Need to change tasks so the message in
+            # valueerror makes more sense?
+            #
             
-            # continue with the exception so we can see it on the console
-            raise
+            self.debug("Warning, tasked matched but did not understand message!!!! " + str(e) )
+            
+            # We return true so that rapidsms does not send its own 'I did not understand' response
+            return True
         
         if response is None:
             # if response is None, a user-initiated task has been scheduled to start immediately

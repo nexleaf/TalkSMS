@@ -365,3 +365,18 @@ class SerializedTask(models.Model):
                self.m_retries,\
                self.m_timeout,\
                self.i_initialnode)
+
+
+
+# =================================================================
+# ==== Misc
+# =================================================================
+
+
+class UnmatchedMessages(models.Model):
+    identity = models.CharField(max_length=256)
+    message_datetime = models.DateTimeField(auto_now_add=True)
+    message_text = models.CharField(max_length=256)
+    
+    class Meta:
+        ordering = ['-message_datetime']
